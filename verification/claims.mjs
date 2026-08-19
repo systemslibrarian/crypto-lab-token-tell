@@ -27,7 +27,7 @@ export const LAB = {
 export const EXTRACTION = {
   // Filled by the commit that pins this tree; see verification/README.md for why this is
   // a two-commit dance rather than a self-reference.
-  commit_sha: 'PENDING-FIRST-COMMIT',
+  commit_sha: 'beeec8751e25d44ca15b293c0163a14eb1207857',
   extraction: {
     pass: 'B',
     model: 'claude-opus-5[1m]',
