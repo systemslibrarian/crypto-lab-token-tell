@@ -146,7 +146,7 @@ pip install -r tools/requirements-transformers.txt  # capture_sampling_table.py 
 ## Build & Verify
 
 ```
-npm test              # 177 unit tests, including differential vectors from both references
+npm test              # 214 unit tests, including differential vectors from both references
 npm run verify        # the independent verifier: 112 checks, sharing no module with the lab
 npm run verify:manifest
 npm run test:a11y     # axe WCAG 2.1 A/AA gate plus the claims suite
