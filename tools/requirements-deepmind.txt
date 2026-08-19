@@ -1,0 +1,11 @@
+# Environment for the capture scripts that use the official reference implementation:
+#   generate_texts.py, capture_corpora.py, capture_distributions.py,
+#   capture_attacks.py, make_test_vectors.py --construction deepmind
+#
+# This pins torch 2.4 / transformers 4.43 because synthid-text does. It is deliberately
+# NOT the same environment as requirements-transformers.txt: installing one downgrades
+# the other, which is itself part of the divergence this lab documents.
+synthid-text @ git+https://github.com/google-deepmind/synthid-text@addb4a158143c7c6851a1308f78b89fceed59683
+sentencepiece
+sacremoses
+protobuf

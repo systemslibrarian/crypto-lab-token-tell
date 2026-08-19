@@ -1,0 +1,7 @@
+# Environment for the transformers-variant vectors:
+#   make_test_vectors.py --construction transformers
+#   capture_sampling_table.py   (the table only exists in this implementation)
+#
+# Keep this in a separate virtualenv from requirements-deepmind.txt.
+torch==2.13.0
+transformers==5.15.1

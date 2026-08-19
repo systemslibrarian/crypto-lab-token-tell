@@ -1,0 +1,151 @@
+{
+ "what": "transformations that need a model, applied to a pinned watermarked sample",
+ "implementation_provenance": "PINNED EMPIRICAL DATA",
+ "source_sample": "watermarked",
+ "watermark": {
+  "ngram_len": 5,
+  "keys": [
+   654,
+   400,
+   836,
+   123,
+   340,
+   443,
+   597,
+   160,
+   57,
+   29,
+   590,
+   639,
+   13,
+   715,
+   468,
+   990,
+   966,
+   226,
+   324,
+   585,
+   118,
+   504,
+   421,
+   521,
+   129,
+   669,
+   732,
+   225,
+   90,
+   960
+  ],
+  "context_history_size": 1024,
+  "num_leaves": 2,
+  "skip_first_ngram_calls": true
+ },
+ "construction": "deepmind-addb4a1",
+ "tokenizer_id": "openai-community/gpt2",
+ "measurement_note": "Scores here are the reference implementation's, recorded so the browser's live recomputation can be checked against them. The page recomputes every number it shows; it does not read these.",
+ "transformations": [
+  {
+   "id": "back-translation",
+   "name": "Back-translation (English to German to English)",
+   "kind": "pinned",
+   "instructions": "each sentence translated independently, beam search, 4 beams, no sampling",
+   "parameters": {
+    "num_beams": 4,
+    "do_sample": false,
+    "max_new_tokens": 512,
+    "sentence_split": "(?<=[.!?])\\s+"
+   },
+   "hops": [
+    {
+     "hop": "en->de",
+     "model_id": "Helsinki-NLP/opus-mt-en-de",
+     "model_revision": "6183067f769a302e3861815543b9f312c71b0ca4",
+     "text": "es gibt \"keine Möglichkeit, Informationen über die Sammlung zu erhalten, weil sie in allen Fällen zuvor geheim gehalten wurde\". Es heißt auch, dass \"ein Versuch, die Geschichte der Datenerhebung nach [dem Gesetz über öffentliche Aufzeichnungen der Regierung] zu verbergen, das Ziel der Wahrung des öffentlichen Vertrauens und der Geheimhaltung nicht erreichen wird\". Die Bibliothek sagt, dass sie nun alle ihre veröffentlichten Informationen in einer öffentlichen Bibliothek veröffentlichen wird, aber dass \"das nicht die öffentliche Kontrolle ausschließen soll, um sicherzustellen, dass unsere neue Politik mit der Politik der Regierung übereinstimmt\". Die Regierung will, dass das Archiv \"konsistent, effizient, vollständig und unabhängig\" wird und \"auf der Grundlage ihrer eigenen Einschätzung ihrer Informationen und der bestehenden Anforderungen an die Archivverwaltung und Transparenz Informationen zur Verfügung stellt, auf die die Bibliothek zugreifen könnte\". \"Archive können Informationen nicht mehr vor staatlichen Stellen oder anderen Stakeholdern verbergen\", heißt es darin. Die Regierung reagierte nicht auf die Aufforderung zur Stellungnahme. Themen: Gesetz-Verbrechen-und-Justiz, Regierung-und-Politik, Parlament, Regierung-und-Politik, Österreich Erste Beiträge Quelle: Public Records Act 2010 der Regierung E-Mail: [email protected] Diese Seite drucken (Bild: Public Records Act 2010 der Regierung) (Letzte Aktualisierung: 7 Jan. 2012) Vollständiger Wortlaut des Gesetzes https://www.gov.au/coup/public-records Informationen, die bei der Ausarbeitung dieser Rechtsvorschriften verwendet werden, werden im Rahmen einer Reihe von Gesetzen, einschließlich des Nationalarchivgesetzes, zur Verfügung gestellt."
+    },
+    {
+     "hop": "de->en",
+     "model_id": "Helsinki-NLP/opus-mt-de-en",
+     "model_revision": "1a922f3b32a8e809e17a47d4b32142d8105924e5",
+     "text": "There is \"no way to get information about the collection because it was previously kept secret in all cases\". It also states that \"an attempt to hide the history of data collection under [the Government's Public Records Act] will not achieve the goal of maintaining public confidence and secrecy.\" The library says that it will now publish all its published information in a public library, but that \"this should not exclude public control to ensure that our new policy is in line with government policies.\" The government wants the archive to become \"consistent, efficient, complete and independent\" and \"provide information on the basis of its own assessment of its information and the existing requirements for archive management and transparency that the library could access\". \"Archives can no longer hide information from government agencies or other stakeholders,\" it says. The government did not respond to the request for comments. Topics: Law-crime-and-justice, government-and-politics, parliament, government-and-politics, Austria First Posts Source: Public Records Act 2010 of the government E-Mail: [email protected] Print this page (Picture: Public Records Act 2010 of the government) (Last Update: 7 Jan. 2012) Full text of the law https://www.gov.au/coup/public-records Information used in the preparation of this legislation is provided under a number of laws, including the National Archives Act."
+    }
+   ],
+   "original_text": " there is \"no way to maintain information about the collection because, in all cases, it was previously maintained in secrecy\".\n\nIt also says that \"an attempt to conceal the history of data collection under [The Government's Public Records Act] will not achieve the goal of safeguarding public trust and secrecy\".\n\nThe library says that it will now publish all its published information to a public library, but that \"this is not to preclude public scrutiny to make sure that our new policy is in keeping with the policy of the government\".\n\nThe government wants the archive to become \"consistent, efficient, complete and independent\" and to \"provide information the Library could access, based on their own assessment of their information and the existing requirements provided for archive stewardship and transparency\".\n\n\"Archives can no longer hide information from government agencies or other stakeholders,\" it says.\n\nThe government did not respond to request for comment.\n\nTopics: law-crime-and-justice, government-and-politics, parliament, government-and-politics, australia\n\nFirst posted\n\nSource: The Government's Public Records Act 2010\n\nEmail: [email protected]\n\nPrint this page\n\n(Image: The Government's Public Records Act 2010)\n\n(Last update: 7 Jan. 2012)\n\nFull text of the law\n\nhttps://www.gov.au/coup/public-records\n\nInformation used in the preparation of this legislation is made available under a range of laws, including the National Archives Act,",
+   "transformed_text": "There is \"no way to get information about the collection because it was previously kept secret in all cases\". It also states that \"an attempt to hide the history of data collection under [the Government's Public Records Act] will not achieve the goal of maintaining public confidence and secrecy.\" The library says that it will now publish all its published information in a public library, but that \"this should not exclude public control to ensure that our new policy is in line with government policies.\" The government wants the archive to become \"consistent, efficient, complete and independent\" and \"provide information on the basis of its own assessment of its information and the existing requirements for archive management and transparency that the library could access\". \"Archives can no longer hide information from government agencies or other stakeholders,\" it says. The government did not respond to the request for comments. Topics: Law-crime-and-justice, government-and-politics, parliament, government-and-politics, Austria First Posts Source: Public Records Act 2010 of the government E-Mail: [email protected] Print this page (Picture: Public Records Act 2010 of the government) (Last Update: 7 Jan. 2012) Full text of the law https://www.gov.au/coup/public-records Information used in the preparation of this legislation is provided under a number of laws, including the National Archives Act.",
+   "reference_score_original": {
+    "score": 0.5974613686534216,
+    "g_sum": 5413,
+    "scored_positions": 302,
+    "candidate_positions": 316,
+    "masked_positions": 14,
+    "depth": 30,
+    "token_count": 320,
+    "text_sha256": "b86ce2c10aa067a4d121047e83bb0f9f97112ae4a6819893414dabe2d75b6771"
+   },
+   "reference_score_transformed": {
+    "score": 0.5352059925093633,
+    "g_sum": 4287,
+    "scored_positions": 267,
+    "candidate_positions": 276,
+    "masked_positions": 9,
+    "depth": 30,
+    "token_count": 280,
+    "text_sha256": "3eaa001348cef70bdca0e96e84fdb51e3d3fa60f00ee5bd8797472f7b97d7377"
+   }
+  },
+  {
+   "id": "paraphrase",
+   "name": "Paraphrase / regeneration",
+   "kind": "pinned",
+   "instructions": "each sentence rewritten independently with the prefix 'paraphrase: '",
+   "parameters": {
+    "num_beams": 4,
+    "do_sample": false,
+    "max_new_tokens": 256,
+    "repetition_penalty": 1.0
+   },
+   "hops": [
+    {
+     "hop": "paraphrase",
+     "model_id": "humarin/chatgpt_paraphraser_on_T5_base",
+     "model_revision": "d3ab1136f6c3d3d2f8031d07551d2054a5372a50",
+     "text": "The collection's secrecy makes it impossible to keep track of it. The Government's Public Records Act's aim is to maintain public trust and secrecy by concealing the past data collection practices. The library has announced that it will make its published information available to a public library, but this is not to prevent public scrutiny to ensure compliance with government policies. The government's objective is to ensure that the archive is consistent, efficient, complete, and independent, and that the Library can access the information based on their own assessment and the current requirements for stewardship and transparency. Information can no longer be concealed by archives from government agencies or other stakeholders, according to the statement. There was no response from the government to a request for comment. The Government's Public Records Act 2010 was first published in Australia and covers various topics such as law-crime-and-justice, government-and-politics, parliament, government-and-politics. The National Archives Act, National Archives Act of Australia, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Association Association Association Association Association Association Association Association Association Association Association Association Association"
+    }
+   ],
+   "original_text": " there is \"no way to maintain information about the collection because, in all cases, it was previously maintained in secrecy\".\n\nIt also says that \"an attempt to conceal the history of data collection under [The Government's Public Records Act] will not achieve the goal of safeguarding public trust and secrecy\".\n\nThe library says that it will now publish all its published information to a public library, but that \"this is not to preclude public scrutiny to make sure that our new policy is in keeping with the policy of the government\".\n\nThe government wants the archive to become \"consistent, efficient, complete and independent\" and to \"provide information the Library could access, based on their own assessment of their information and the existing requirements provided for archive stewardship and transparency\".\n\n\"Archives can no longer hide information from government agencies or other stakeholders,\" it says.\n\nThe government did not respond to request for comment.\n\nTopics: law-crime-and-justice, government-and-politics, parliament, government-and-politics, australia\n\nFirst posted\n\nSource: The Government's Public Records Act 2010\n\nEmail: [email protected]\n\nPrint this page\n\n(Image: The Government's Public Records Act 2010)\n\n(Last update: 7 Jan. 2012)\n\nFull text of the law\n\nhttps://www.gov.au/coup/public-records\n\nInformation used in the preparation of this legislation is made available under a range of laws, including the National Archives Act,",
+   "transformed_text": "The collection's secrecy makes it impossible to keep track of it. The Government's Public Records Act's aim is to maintain public trust and secrecy by concealing the past data collection practices. The library has announced that it will make its published information available to a public library, but this is not to prevent public scrutiny to ensure compliance with government policies. The government's objective is to ensure that the archive is consistent, efficient, complete, and independent, and that the Library can access the information based on their own assessment and the current requirements for stewardship and transparency. Information can no longer be concealed by archives from government agencies or other stakeholders, according to the statement. There was no response from the government to a request for comment. The Government's Public Records Act 2010 was first published in Australia and covers various topics such as law-crime-and-justice, government-and-politics, parliament, government-and-politics. The National Archives Act, National Archives Act of Australia, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Act of Canada, National Archives Association Association Association Association Association Association Association Association Association Association Association Association Association",
+   "reference_score_original": {
+    "score": 0.5974613686534216,
+    "g_sum": 5413,
+    "scored_positions": 302,
+    "candidate_positions": 316,
+    "masked_positions": 14,
+    "depth": 30,
+    "token_count": 320,
+    "text_sha256": "b86ce2c10aa067a4d121047e83bb0f9f97112ae4a6819893414dabe2d75b6771"
+   },
+   "reference_score_transformed": {
+    "score": 0.49982993197278913,
+    "g_sum": 2939,
+    "scored_positions": 196,
+    "candidate_positions": 309,
+    "masked_positions": 113,
+    "depth": 30,
+    "token_count": 313,
+    "text_sha256": "dd2cdf11a93083c05b925fbb65f49a188d7df93c34ad71e21865bc7f7edbbb95"
+   }
+  }
+ ],
+ "provenance": {
+  "capture_script": "tools/capture_attacks.py",
+  "capture_script_sha256": "fd248acd978c6b8a05d03138d3e21fd780a80588010bc8b283c9dd61bb2eba7a",
+  "capture_repo_commit": "af8dcbcf29d13a23d1c5d816448df318923aa48c",
+  "capture_timestamp_utc": "2026-08-19T19:15:02Z",
+  "libraries": {
+   "python": "3.12.1",
+   "torch": "2.4.0+cu121",
+   "transformers": "4.43.3",
+   "synthid-text": "0.2.1",
+   "synthid-text_commit": "addb4a158143c7c6851a1308f78b89fceed59683"
+  }
+ }
+}

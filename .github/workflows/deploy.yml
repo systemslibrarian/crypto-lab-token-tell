@@ -1,0 +1,67 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # The whole suite gates the deploy, not just the accessibility half. A repo that
+      # runs only test:a11y can publish a build whose arithmetic is broken so long as the
+      # browser specs pass; 29 repos in this fleet were found in exactly that state.
+      - name: Unit tests, differential vectors and coverage gate
+        run: npm run test:coverage
+
+      - name: Manifest is in sync with the claims it is generated from
+        run: node verification/tools/build-manifest.mjs --check
+
+      - name: Verification manifest validates
+        run: npm run verify:manifest
+
+      - name: Independent verifier
+        run: npm run verify
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Accessibility gate (axe, WCAG 2.1 A/AA) and claims suite
+        run: npm run test:a11y
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

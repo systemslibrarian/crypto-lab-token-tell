@@ -1,0 +1,854 @@
+{
+ "what": "pinned GPT-2 next-token distributions, after the preprocessing the watermark sees",
+ "implementation_provenance": "PINNED EMPIRICAL DATA",
+ "labelling_rule": "These are NOT unmodified model distributions. Temperature scaling and top-k truncation were applied first, because that is what the reference logits processor watermarks over. Full-vocabulary entropy is recorded so the cost of the truncation is visible rather than hidden.",
+ "model": {
+  "model_id": "openai-community/gpt2",
+  "model_revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+  "tokenizer_id": "openai-community/gpt2",
+  "tokenizer_revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e"
+ },
+ "distributions": {
+  "high_entropy": {
+   "label": "Pinned GPT-2 sampling distribution after temperature=1.0 and top-k=40 preprocessing",
+   "prompt": "The library's new archival policy explains that",
+   "context_token_ids": [
+    464,
+    5888,
+    338,
+    649,
+    3934,
+    2473,
+    2450,
+    6688,
+    326
+   ],
+   "context_token_strings": [
+    "The",
+    "Ġlibrary",
+    "'s",
+    "Ġnew",
+    "Ġarch",
+    "ival",
+    "Ġpolicy",
+    "Ġexplains",
+    "Ġthat"
+   ],
+   "temperature": 1.0,
+   "top_k": 40,
+   "raw_logits_sha256": "f8e8a01b43d1f53ff8f360d38e174bdcc54e94e89ee597a2260f357db5cdcbf7",
+   "raw_logits_dtype": "torch.float32",
+   "full_vocabulary_entropy_bits": 7.659674129635683,
+   "scaled_full_vocabulary_entropy_bits": 7.659674129635683,
+   "candidate_entropy_bits": 4.4001334855975145,
+   "mass_kept_by_top_k": 0.648858368396759,
+   "candidates": [
+    {
+     "token_id": 262,
+     "token_string": "Ġthe",
+     "token_text": " the",
+     "probability": 0.2086380273103714
+    },
+    {
+     "token_id": 340,
+     "token_string": "Ġit",
+     "token_text": " it",
+     "probability": 0.12389814108610153
+    },
+    {
+     "token_id": 366,
+     "token_string": "Ġ\"",
+     "token_text": " \"",
+     "probability": 0.08585513383150101
+    },
+    {
+     "token_id": 11,
+     "token_string": ",",
+     "token_text": ",",
+     "probability": 0.05736314877867699
+    },
+    {
+     "token_id": 12782,
+     "token_string": "Ġlibraries",
+     "token_text": " libraries",
+     "probability": 0.05184424668550491
+    },
+    {
+     "token_id": 611,
+     "token_string": "Ġif",
+     "token_text": " if",
+     "probability": 0.04013463482260704
+    },
+    {
+     "token_id": 597,
+     "token_string": "Ġany",
+     "token_text": " any",
+     "probability": 0.03812211751937866
+    },
+    {
+     "token_id": 25,
+     "token_string": ":",
+     "token_text": ":",
+     "probability": 0.03125068545341492
+    },
+    {
+     "token_id": 257,
+     "token_string": "Ġa",
+     "token_text": " a",
+     "probability": 0.029720811173319817
+    },
+    {
+     "token_id": 477,
+     "token_string": "Ġall",
+     "token_text": " all",
+     "probability": 0.025863884016871452
+    },
+    {
+     "token_id": 691,
+     "token_string": "Ġonly",
+     "token_text": " only",
+     "probability": 0.022389644756913185
+    },
+    {
+     "token_id": 663,
+     "token_string": "Ġits",
+     "token_text": " its",
+     "probability": 0.02043256163597107
+    },
+    {
+     "token_id": 618,
+     "token_string": "Ġwhen",
+     "token_text": " when",
+     "probability": 0.017070090398192406
+    },
+    {
+     "token_id": 612,
+     "token_string": "Ġthere",
+     "token_text": " there",
+     "probability": 0.016869673505425453
+    },
+    {
+     "token_id": 645,
+     "token_string": "Ġno",
+     "token_text": " no",
+     "probability": 0.015844326466321945
+    },
+    {
+     "token_id": 345,
+     "token_string": "Ġyou",
+     "token_text": " you",
+     "probability": 0.015826325863599777
+    },
+    {
+     "token_id": 5888,
+     "token_string": "Ġlibrary",
+     "token_text": " library",
+     "probability": 0.015024359337985516
+    },
+    {
+     "token_id": 287,
+     "token_string": "Ġin",
+     "token_text": " in",
+     "probability": 0.014743993990123272
+    },
+    {
+     "token_id": 428,
+     "token_string": "Ġthis",
+     "token_text": " this",
+     "probability": 0.01418435387313366
+    },
+    {
+     "token_id": 649,
+     "token_string": "Ġnew",
+     "token_text": " new",
+     "probability": 0.011336482129991055
+    },
+    {
+     "token_id": 3934,
+     "token_string": "Ġarch",
+     "token_text": " arch",
+     "probability": 0.010686264373362064
+    },
+    {
+     "token_id": 3835,
+     "token_string": "Ġbooks",
+     "token_text": " books",
+     "probability": 0.009610510431230068
+    },
+    {
+     "token_id": 484,
+     "token_string": "Ġthey",
+     "token_text": " they",
+     "probability": 0.009388025850057602
+    },
+    {
+     "token_id": 981,
+     "token_string": "Ġwhile",
+     "token_text": " while",
+     "probability": 0.009179722517728806
+    },
+    {
+     "token_id": 2985,
+     "token_string": "Ġusers",
+     "token_text": " users",
+     "probability": 0.009047063067555428
+    },
+    {
+     "token_id": 1123,
+     "token_string": "Ġeach",
+     "token_text": " each",
+     "probability": 0.008333589881658554
+    },
+    {
+     "token_id": 281,
+     "token_string": "Ġan",
+     "token_text": " an",
+     "probability": 0.007971161976456642
+    },
+    {
+     "token_id": 617,
+     "token_string": "Ġsome",
+     "token_text": " some",
+     "probability": 0.007808998692780733
+    },
+    {
+     "token_id": 777,
+     "token_string": "Ġthese",
+     "token_text": " these",
+     "probability": 0.007625077851116657
+    },
+    {
+     "token_id": 329,
+     "token_string": "Ġfor",
+     "token_text": " for",
+     "probability": 0.007070846389979124
+    },
+    {
+     "token_id": 790,
+     "token_string": "Ġevery",
+     "token_text": " every",
+     "probability": 0.006881434470415115
+    },
+    {
+     "token_id": 17268,
+     "token_string": "Ġcollections",
+     "token_text": " collections",
+     "probability": 0.006455736700445414
+    },
+    {
+     "token_id": 1728,
+     "token_string": "Ġcertain",
+     "token_text": " certain",
+     "probability": 0.006396609358489513
+    },
+    {
+     "token_id": 355,
+     "token_string": "Ġas",
+     "token_text": " as",
+     "probability": 0.006029632408171892
+    },
+    {
+     "token_id": 883,
+     "token_string": "Ġthose",
+     "token_text": " those",
+     "probability": 0.005982663948088884
+    },
+    {
+     "token_id": 2444,
+     "token_string": "Ġstudents",
+     "token_text": " students",
+     "probability": 0.005980381742119789
+    },
+    {
+     "token_id": 772,
+     "token_string": "Ġeven",
+     "token_text": " even",
+     "probability": 0.004940428305417299
+    },
+    {
+     "token_id": 2687,
+     "token_string": "Ġanyone",
+     "token_text": " anyone",
+     "probability": 0.004786673933267593
+    },
+    {
+     "token_id": 884,
+     "token_string": "Ġsuch",
+     "token_text": " such",
+     "probability": 0.0047457655891776085
+    },
+    {
+     "token_id": 17604,
+     "token_string": "Ġpublishers",
+     "token_text": " publishers",
+     "probability": 0.0046668099239468575
+    }
+   ]
+  },
+  "low_entropy": {
+   "label": "Pinned GPT-2 sampling distribution after temperature=1.0 and top-k=40 preprocessing",
+   "prompt": "The Declaration of Independence was signed in the year seventeen seventy",
+   "context_token_ids": [
+    464,
+    24720,
+    286,
+    20153,
+    373,
+    4488,
+    287,
+    262,
+    614,
+    38741,
+    31989
+   ],
+   "context_token_strings": [
+    "The",
+    "ĠDeclaration",
+    "Ġof",
+    "ĠIndependence",
+    "Ġwas",
+    "Ġsigned",
+    "Ġin",
+    "Ġthe",
+    "Ġyear",
+    "Ġseventeen",
+    "Ġseventy"
+   ],
+   "temperature": 1.0,
+   "top_k": 40,
+   "raw_logits_sha256": "c5ef49ded4a3f2c38c3be641849779e604d436d72770e1339b6b071c7039d806",
+   "raw_logits_dtype": "torch.float32",
+   "full_vocabulary_entropy_bits": 2.235526089255295,
+   "scaled_full_vocabulary_entropy_bits": 2.235526089255295,
+   "candidate_entropy_bits": 1.8029554909194172,
+   "mass_kept_by_top_k": 0.968146800994873,
+   "candidates": [
+    {
+     "token_id": 12,
+     "token_string": "-",
+     "token_text": "-",
+     "probability": 0.7592664361000061
+    },
+    {
+     "token_id": 1440,
+     "token_string": "Ġfour",
+     "token_text": " four",
+     "probability": 0.033791594207286835
+    },
+    {
+     "token_id": 734,
+     "token_string": "Ġtwo",
+     "token_text": " two",
+     "probability": 0.02615189552307129
+    },
+    {
+     "token_id": 11,
+     "token_string": ",",
+     "token_text": ",",
+     "probability": 0.023589974269270897
+    },
+    {
+     "token_id": 13,
+     "token_string": ".",
+     "token_text": ".",
+     "probability": 0.020336294546723366
+    },
+    {
+     "token_id": 1936,
+     "token_string": "Ġfive",
+     "token_text": " five",
+     "probability": 0.01834408938884735
+    },
+    {
+     "token_id": 290,
+     "token_string": "Ġand",
+     "token_text": " and",
+     "probability": 0.018000265583395958
+    },
+    {
+     "token_id": 1115,
+     "token_string": "Ġthree",
+     "token_text": " three",
+     "probability": 0.014519230462610722
+    },
+    {
+     "token_id": 530,
+     "token_string": "Ġone",
+     "token_text": " one",
+     "probability": 0.013125441037118435
+    },
+    {
+     "token_id": 3624,
+     "token_string": "Ġeight",
+     "token_text": " eight",
+     "probability": 0.010341928340494633
+    },
+    {
+     "token_id": 2237,
+     "token_string": "Ġsix",
+     "token_text": " six",
+     "probability": 0.009420960210263729
+    },
+    {
+     "token_id": 5193,
+     "token_string": "Ġnine",
+     "token_text": " nine",
+     "probability": 0.009124074131250381
+    },
+    {
+     "token_id": 812,
+     "token_string": "Ġyears",
+     "token_text": " years",
+     "probability": 0.008002513088285923
+    },
+    {
+     "token_id": 3598,
+     "token_string": "Ġseven",
+     "token_text": " seven",
+     "probability": 0.006999887991696596
+    },
+    {
+     "token_id": 357,
+     "token_string": "Ġ(",
+     "token_text": " (",
+     "probability": 0.004424856975674629
+    },
+    {
+     "token_id": 287,
+     "token_string": "Ġin",
+     "token_text": " in",
+     "probability": 0.00302924239076674
+    },
+    {
+     "token_id": 286,
+     "token_string": "Ġof",
+     "token_text": " of",
+     "probability": 0.0013473754515871406
+    },
+    {
+     "token_id": 416,
+     "token_string": "Ġby",
+     "token_text": " by",
+     "probability": 0.0013319270219653845
+    },
+    {
+     "token_id": 284,
+     "token_string": "Ġto",
+     "token_text": " to",
+     "probability": 0.0012798417592421174
+    },
+    {
+     "token_id": 960,
+     "token_string": "âĢĶ",
+     "token_text": "—",
+     "probability": 0.0012724957196041942
+    },
+    {
+     "token_id": 26,
+     "token_string": ";",
+     "token_text": ";",
+     "probability": 0.0011239806190133095
+    },
+    {
+     "token_id": 393,
+     "token_string": "Ġor",
+     "token_text": " or",
+     "probability": 0.0010731563670560718
+    },
+    {
+     "token_id": 1528,
+     "token_string": "Ġdays",
+     "token_text": " days",
+     "probability": 0.0010611637262627482
+    },
+    {
+     "token_id": 532,
+     "token_string": "Ġ-",
+     "token_text": " -",
+     "probability": 0.0010571153834462166
+    },
+    {
+     "token_id": 7319,
+     "token_string": "Ġthousand",
+     "token_text": " thousand",
+     "probability": 0.0010393098928034306
+    },
+    {
+     "token_id": 851,
+     "token_string": "ĠâĢĶ",
+     "token_text": " —",
+     "probability": 0.0009310949244536459
+    },
+    {
+     "token_id": 8208,
+     "token_string": "Ġtwenty",
+     "token_text": " twenty",
+     "probability": 0.0009219128405675292
+    },
+    {
+     "token_id": 198,
+     "token_string": "Ċ",
+     "token_text": "\n",
+     "probability": 0.0008520155097357929
+    },
+    {
+     "token_id": 379,
+     "token_string": "Ġat",
+     "token_text": " at",
+     "probability": 0.0008263720665127039
+    },
+    {
+     "token_id": 11545,
+     "token_string": "two",
+     "token_text": "two",
+     "probability": 0.0008192752138711512
+    },
+    {
+     "token_id": 329,
+     "token_string": "Ġfor",
+     "token_text": " for",
+     "probability": 0.000765728356782347
+    },
+    {
+     "token_id": 319,
+     "token_string": "Ġon",
+     "token_text": " on",
+     "probability": 0.0007634999346919358
+    },
+    {
+     "token_id": 526,
+     "token_string": ".\"",
+     "token_text": ".\"",
+     "probability": 0.0007396172150038183
+    },
+    {
+     "token_id": 352,
+     "token_string": "Ġ1",
+     "token_text": " 1",
+     "probability": 0.0007322396268136799
+    },
+    {
+     "token_id": 257,
+     "token_string": "Ġa",
+     "token_text": " a",
+     "probability": 0.0006824494921602309
+    },
+    {
+     "token_id": 15334,
+     "token_string": "Ġfifty",
+     "token_text": " fifty",
+     "probability": 0.0006134777213446796
+    },
+    {
+     "token_id": 355,
+     "token_string": "Ġas",
+     "token_text": " as",
+     "probability": 0.000605879642535001
+    },
+    {
+     "token_id": 22216,
+     "token_string": "Ġeleven",
+     "token_text": " eleven",
+     "probability": 0.0005673178820870817
+    },
+    {
+     "token_id": 16571,
+     "token_string": "Ġforty",
+     "token_text": " forty",
+     "probability": 0.0005670539103448391
+    },
+    {
+     "token_id": 717,
+     "token_string": "Ġfirst",
+     "token_text": " first",
+     "probability": 0.0005568885244429111
+    }
+   ]
+  },
+  "mid_entropy": {
+   "label": "Pinned GPT-2 sampling distribution after temperature=1.0 and top-k=40 preprocessing",
+   "prompt": "She opened the drawer and found a",
+   "context_token_ids": [
+    3347,
+    4721,
+    262,
+    33451,
+    290,
+    1043,
+    257
+   ],
+   "context_token_strings": [
+    "She",
+    "Ġopened",
+    "Ġthe",
+    "Ġdrawer",
+    "Ġand",
+    "Ġfound",
+    "Ġa"
+   ],
+   "temperature": 1.0,
+   "top_k": 40,
+   "raw_logits_sha256": "b4231ab87f2d13115b0514e06692bd7fcb0856de4092469b1d76429af12def0a",
+   "raw_logits_dtype": "torch.float32",
+   "full_vocabulary_entropy_bits": 9.332098341377556,
+   "scaled_full_vocabulary_entropy_bits": 9.332098341377556,
+   "candidate_entropy_bits": 4.762485878492938,
+   "mass_kept_by_top_k": 0.41411030292510986,
+   "candidates": [
+    {
+     "token_id": 1402,
+     "token_string": "Ġsmall",
+     "token_text": " small",
+     "probability": 0.15937231481075287
+    },
+    {
+     "token_id": 1588,
+     "token_string": "Ġlarge",
+     "token_text": " large",
+     "probability": 0.08964154124259949
+    },
+    {
+     "token_id": 3091,
+     "token_string": "Ġbox",
+     "token_text": " box",
+     "probability": 0.06892169266939163
+    },
+    {
+     "token_id": 5166,
+     "token_string": "Ġpair",
+     "token_text": " pair",
+     "probability": 0.05889835208654404
+    },
+    {
+     "token_id": 9294,
+     "token_string": "Ġbottle",
+     "token_text": " bottle",
+     "probability": 0.04788877069950104
+    },
+    {
+     "token_id": 1492,
+     "token_string": "Ġbook",
+     "token_text": " book",
+     "probability": 0.044848885387182236
+    },
+    {
+     "token_id": 1178,
+     "token_string": "Ġfew",
+     "token_text": " few",
+     "probability": 0.037062082439661026
+    },
+    {
+     "token_id": 6131,
+     "token_string": "Ġbag",
+     "token_text": " bag",
+     "probability": 0.037059538066387177
+    },
+    {
+     "token_id": 3465,
+     "token_string": "Ġnote",
+     "token_text": " note",
+     "probability": 0.0271392073482275
+    },
+    {
+     "token_id": 3155,
+     "token_string": "Ġcouple",
+     "token_text": " couple",
+     "probability": 0.026661841198801994
+    },
+    {
+     "token_id": 8931,
+     "token_string": "Ġstack",
+     "token_text": " stack",
+     "probability": 0.026317870244383812
+    },
+    {
+     "token_id": 3704,
+     "token_string": "Ġpiece",
+     "token_text": " piece",
+     "probability": 0.023234479129314423
+    },
+    {
+     "token_id": 9629,
+     "token_string": "Ġsheet",
+     "token_text": " sheet",
+     "probability": 0.01934143155813217
+    },
+    {
+     "token_id": 6508,
+     "token_string": "Ġcup",
+     "token_text": " cup",
+     "probability": 0.01767059974372387
+    },
+    {
+     "token_id": 10089,
+     "token_string": "Ġhandful",
+     "token_text": " handful",
+     "probability": 0.017175348475575447
+    },
+    {
+     "token_id": 7684,
+     "token_string": "Ġbunch",
+     "token_text": " bunch",
+     "probability": 0.01637396030128002
+    },
+    {
+     "token_id": 1310,
+     "token_string": "Ġlittle",
+     "token_text": " little",
+     "probability": 0.016358600929379463
+    },
+    {
+     "token_id": 7309,
+     "token_string": "Ġplastic",
+     "token_text": " plastic",
+     "probability": 0.016160864382982254
+    },
+    {
+     "token_id": 33451,
+     "token_string": "Ġdrawer",
+     "token_text": " drawer",
+     "probability": 0.015751488506793976
+    },
+    {
+     "token_id": 900,
+     "token_string": "Ġset",
+     "token_text": " set",
+     "probability": 0.014870036393404007
+    },
+    {
+     "token_id": 890,
+     "token_string": "Ġlong",
+     "token_text": " long",
+     "probability": 0.014130965806543827
+    },
+    {
+     "token_id": 17379,
+     "token_string": "Ġjar",
+     "token_text": " jar",
+     "probability": 0.012865312397480011
+    },
+    {
+     "token_id": 2330,
+     "token_string": "Ġwhite",
+     "token_text": " white",
+     "probability": 0.012736787088215351
+    },
+    {
+     "token_id": 2060,
+     "token_string": "Ġsingle",
+     "token_text": " single",
+     "probability": 0.012576783075928688
+    },
+    {
+     "token_id": 3850,
+     "token_string": "Ġletter",
+     "token_text": " letter",
+     "probability": 0.012322427704930305
+    },
+    {
+     "token_id": 20922,
+     "token_string": "Ġnotebook",
+     "token_text": " notebook",
+     "probability": 0.01169524621218443
+    },
+    {
+     "token_id": 7009,
+     "token_string": "Ġtiny",
+     "token_text": " tiny",
+     "probability": 0.011650185100734234
+    },
+    {
+     "token_id": 2042,
+     "token_string": "Ġblack",
+     "token_text": " black",
+     "probability": 0.011202334426343441
+    },
+    {
+     "token_id": 3348,
+     "token_string": "Ġpaper",
+     "token_text": " paper",
+     "probability": 0.011125253513455391
+    },
+    {
+     "token_id": 9396,
+     "token_string": "Ġbowl",
+     "token_text": " bowl",
+     "probability": 0.011124489828944206
+    },
+    {
+     "token_id": 21613,
+     "token_string": "Ġpencil",
+     "token_text": " pencil",
+     "probability": 0.010904080234467983
+    },
+    {
+     "token_id": 2353,
+     "token_string": "Ġpack",
+     "token_text": " pack",
+     "probability": 0.010552885942161083
+    },
+    {
+     "token_id": 5301,
+     "token_string": "Ġpackage",
+     "token_text": " package",
+     "probability": 0.010193695314228535
+    },
+    {
+     "token_id": 14540,
+     "token_string": "Ġpile",
+     "token_text": " pile",
+     "probability": 0.010053053498268127
+    },
+    {
+     "token_id": 649,
+     "token_string": "Ġnew",
+     "token_text": " new",
+     "probability": 0.009933960624039173
+    },
+    {
+     "token_id": 24650,
+     "token_string": "Ġfolded",
+     "token_text": " folded",
+     "probability": 0.009671837091445923
+    },
+    {
+     "token_id": 845,
+     "token_string": "Ġvery",
+     "token_text": " very",
+     "probability": 0.009479702450335026
+    },
+    {
+     "token_id": 1218,
+     "token_string": "Ġsecond",
+     "token_text": " second",
+     "probability": 0.009131785482168198
+    },
+    {
+     "token_id": 3112,
+     "token_string": "Ġpen",
+     "token_text": " pen",
+     "probability": 0.009092021733522415
+    },
+    {
+     "token_id": 3236,
+     "token_string": "Ġhuge",
+     "token_text": " huge",
+     "probability": 0.008808189071714878
+    }
+   ]
+  }
+ },
+ "provenance": {
+  "capture_script": "tools/capture_distributions.py",
+  "capture_script_sha256": "ed4328c9a316090c9853c1889429d9a97af94bee21c713d9d827b9f52f08aa46",
+  "capture_repo_commit": "af8dcbcf29d13a23d1c5d816448df318923aa48c",
+  "capture_timestamp_utc": "2026-08-19T19:15:59Z",
+  "libraries": {
+   "python": "3.12.1",
+   "torch": "2.4.0+cu121",
+   "transformers": "4.43.3",
+   "synthid-text": "0.2.1",
+   "synthid-text_commit": "addb4a158143c7c6851a1308f78b89fceed59683"
+  }
+ }
+}

@@ -1,0 +1,21 @@
+{
+  "what": "hand-authored canonical-JSON expectations, shared by the lab's unit suite and the independent verifier",
+  "why": [
+    "The signature covers bytes, and 'the JSON of this object' is not a single sequence of",
+    "bytes until key order and whitespace are pinned. These expectations were written by",
+    "hand rather than captured from either implementation, so agreement between the two is",
+    "evidence rather than a shared assumption."
+  ],
+  "cases": [
+    { "input": { "b": 1, "a": 2 }, "canonical": "{\"a\":2,\"b\":1}" },
+    { "input": { "a": 2, "b": 1 }, "canonical": "{\"a\":2,\"b\":1}" },
+    { "input": { "x": { "z": 1, "y": [3, { "b": 1, "a": 0 }] } }, "canonical": "{\"x\":{\"y\":[3,{\"a\":0,\"b\":1}],\"z\":1}}" },
+    { "input": [3, 1, 2], "canonical": "[3,1,2]" },
+    { "input": { "nested": [] }, "canonical": "{\"nested\":[]}" },
+    { "input": { "unicode": "figure — dash" }, "canonical": "{\"unicode\":\"figure — dash\"}" },
+    { "input": { "escape": "quote\" and \\ backslash" }, "canonical": "{\"escape\":\"quote\\\" and \\\\ backslash\"}" },
+    { "input": { "n": null, "t": true, "f": false }, "canonical": "{\"f\":false,\"n\":null,\"t\":true}" },
+    { "input": { "num": 1.5 }, "canonical": "{\"num\":1.5}" },
+    { "input": {}, "canonical": "{}" }
+  ]
+}

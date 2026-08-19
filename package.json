@@ -1,0 +1,37 @@
+{
+  "name": "crypto-lab-token-tell",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.19 <25"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:a11y": "playwright test",
+    "verify": "node verification/verifier/verify.mjs",
+    "verify:manifest": "node verification/tools/validate-manifest.mjs verification/manifest.yaml"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.1.2",
+    "@vitest/coverage-v8": "^4.1.11",
+    "ajv": "^8.20.0",
+    "happy-dom": "^20.11.2",
+    "js-yaml": "^5.3.0",
+    "typescript": "~7.0.2",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.3.0"
+  }
+}
