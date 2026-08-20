@@ -20,8 +20,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -51,9 +51,15 @@ jobs:
       - name: Accessibility gate (axe, WCAG 2.1 A/AA) and claims suite
         run: npm run test:a11y
 
-      - uses: actions/upload-pages-artifact@v4
+      # include-hidden-files, because v5 excludes dotted paths from the tarball by
+      # default and dist/.nojekyll is a dotted path. Nothing on the Pages side runs
+      # Jekyll over an uploaded artifact, so losing it would break nothing today — but
+      # the file is on disk deliberately, as the guard for a branch-based deploy, and a
+      # dependency bump is the wrong place to quietly stop shipping it.
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
+          include-hidden-files: true
 
   deploy:
     if: github.event_name == 'push'
@@ -64,4 +70,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
