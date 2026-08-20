@@ -29,7 +29,7 @@ import { resetButton, runGuarded } from './busy.ts';
 import { lineChart } from './chart.ts';
 import {
   actHeader, button, clear, disclosure, el, fixed, integer, labelledSelect, liveRegion,
-  nextFrame, panel, provenanceTag, readout, scroller,
+  nextFrame, panel, provenanceTag, readout, scroller, srOnly,
 } from './dom.ts';
 import { param, setParam } from './mode.ts';
 import { renderScoreCard } from './score-card.ts';
@@ -400,11 +400,24 @@ function renderStrengthCurve(): HTMLElement {
   });
 
   const live = liveRegion('Recomputed detection statistics');
-  const progress = el('p', { class: 'progress', role: 'status', 'aria-live': 'polite' });
+  // The progress line is for eyes. It repaints once every eight texts so a sighted reader
+  // can see the page is working rather than hung, and that is the whole of its job.
+  const progress = el('p', { class: 'progress' });
+  // It is emphatically NOT a live region. A polite region queues rather than coalesces, so
+  // re-scoring two corpora of forty-eight texts in 818ms handed a screen reader thirteen
+  // separate strings to read out in turn — most of a minute of counting — and the answer
+  // the reader had actually asked for arrived at the back of that queue. The run says once
+  // that it has started; the region below says once what it found, when the guard lifts
+  // `aria-busy` from it.
+  const announcer = srOnly('');
+  announcer.setAttribute('role', 'status');
+  announcer.setAttribute('aria-live', 'polite');
 
   const recompute = async () => {
     clear(live);
     progress.textContent = 'Re-scoring both corpora…';
+    announcer.textContent = 'Re-scoring both corpora. The recomputed statistics will be ' +
+      'announced when it finishes.';
     const unmarked = nullCorpus.corpus_token_ids as number[][];
     const marked = (nullCorpus as { watermarked_corpus_token_ids?: number[][] })
       .watermarked_corpus_token_ids ?? [];
@@ -456,12 +469,13 @@ function renderStrengthCurve(): HTMLElement {
   const start = (): Promise<void> => runGuarded(recompute, {
     controls: [recomputeButton, resetControl],
     region: live,
-    onError: () => { progress.textContent = ''; },
+    onError: () => { progress.textContent = ''; announcer.textContent = ''; },
   });
 
   const reset = () => {
     clear(live);
     progress.textContent = '';
+    announcer.textContent = '';
   };
 
   const recomputeButton = button('Recompute in this browser', () => { void start(); });
@@ -500,6 +514,7 @@ function renderStrengthCurve(): HTMLElement {
     ]),
     el('div', { class: 'controls' }, [recomputeButton, resetControl]),
     progress,
+    announcer,
     live,
   ], provenanceTag('pinned', 'matched corpora, 48 texts each'));
 }

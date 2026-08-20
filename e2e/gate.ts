@@ -552,9 +552,18 @@ export async function expectNoHorizontalOverflow(page: Page, label: string): Pro
  * vacuous: `.scroller` is the stylesheet's only author overflow rule, and
  * `dom.ts`'s `scroller()` helper wraps every wide table, the scored-token
  * stream, both inline charts and the comparison table in one. The helper gives
- * each `role="region"`, an `aria-label` and `tabindex="0"`; this check is what
- * proves every scrolling region on the page actually went through it, since a
- * scroller born without a keyboard route is invisible to axe.
+ * each `role="region"` and an `aria-label` unconditionally, and adds the tab
+ * stop only for the ones that are ACTUALLY overflowing at the current width —
+ * it measures, and re-measures on resize, rather than writing a literal
+ * `tabindex="0"` every time. That is deliberate: a tab stop on a box with
+ * nothing to scroll is a dead stop a keyboard reader has to pass through for
+ * no gain, and at 1440 twelve of the fourteen fit their content.
+ *
+ * So this check is not a proof that the helper wrapped everything — it is the
+ * stronger statement, that whatever overflows HERE, in this state and at this
+ * width, has a keyboard route to it. A scroller born without one is invisible
+ * to axe, and a scroller whose stop the measurement wrongly withheld fails
+ * here rather than silently.
  */
 export async function expectScrollersReachable(page: Page, label: string): Promise<void> {
   const unreachable = await page.evaluate(() => {
@@ -913,15 +922,17 @@ type ScanAt = (state: string) => Promise<void>;
  *    consequence line naming the outcome, a depth tag changing sides, a
  *    retirement notice appearing, a row count settling.
  *
- *  - TWO STATES NEED THE ENVIRONMENT CHANGED, AND NEITHER CHANGES THE PAGE.
+ *  - THREE STATES NEED THE ENVIRONMENT CHANGED, AND NONE CHANGES THE PAGE.
  *    A busy rendering exists only while work runs, and a recovery rendering
- *    only when a browser capability is missing, so the last two steps make
- *    `crypto.subtle.sign` slow and then make `crypto.subtle` absent. Both are
- *    emulations of the machine a reader is on, in the same spirit as the
- *    reduced motion this gate boots with: nothing is injected into the
- *    document, no `hidden` is stripped, no state is forced, and the page runs
- *    its own code down its own paths. Both run last, because an init script
- *    cannot be taken back.
+ *    only when a browser capability is missing, so the last three steps make
+ *    `crypto.subtle.sign` slow, then make `crypto.subtle` absent, then give it
+ *    back and press the retry. All three are emulations of the machine a reader
+ *    is on, in the same spirit as the reduced motion this gate boots with:
+ *    nothing is injected into the document, no `hidden` is stripped, no state
+ *    is forced, and the page runs its own code down its own paths. They run
+ *    last, and in this order, because an init script cannot be taken back: the
+ *    slow signature has to be able to find a `crypto.subtle` to be slow about,
+ *    and the recovery has to boot into the loss before it can undo it.
  */
 export async function driveAllStates(page: Page, theme: string): Promise<void> {
   const scanAt: ScanAt = (state) => scan(page, `${theme} / ${state}`);
@@ -965,6 +976,10 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   // find a `crypto.subtle` to be slow about.
   await driveSlowSignature(page, scanAt);
   await driveWithoutWebCrypto(page, scanAt);
+  // And the capability coming back, which is how a presenter leaves the state above:
+  // the page has to recover into an act that can still be driven, not into a passed
+  // verification with every control that acts on it switched off.
+  await driveRestoredWebCrypto(page, scanAt);
 }
 
 /** The state a shared link opens on, at a depth the drive did not boot into. */
@@ -1460,4 +1475,73 @@ async function driveWithoutWebCrypto(page: Page, scanAt: ScanAt): Promise<void> 
   // reprint it rather than leave an empty region behind.
   await expect(page.locator('#act-5 .verdict')).toContainText('This run did not finish');
   await scanAt('a browser with no WebCrypto: the retry pressed, and the failure restated');
+}
+
+/**
+ * The retry that WORKS — the half of recovery no gate in this repository had reached.
+ *
+ * Every check above this one presses "Try again" in a browser that still has no
+ * WebCrypto, so the only thing they can observe is the same failure printed twice. That
+ * leaves the state a presenter actually ends up in unasserted: the projector laptop is
+ * moved onto https, or the lab is reopened from localhost, the capability comes back and
+ * the retry succeeds. What it succeeds INTO is the thing worth gating. Act V's three
+ * mutation controls are switched off before a manifest exists, and the guard restores
+ * every control to whatever it was before the run — which is the right default and
+ * exactly the wrong answer here, because the run is what decides which of them should now
+ * be available. A retry that bypasses the act's own settle therefore lands on a signed
+ * manifest with "Flip one byte of the asset", "Strip the manifest" and "Verify again" all
+ * still disabled: a passed verification the audience cannot do anything with, and no
+ * failure anywhere to explain why.
+ *
+ * The capability is taken away and given back rather than counted out after a fixed
+ * number of property reads. A read count is a guess about how many times the page happens
+ * to touch `crypto.subtle` at boot, which is a number no contract fixes and which any
+ * later edit moves; a flag the emulation itself owns restores exactly when this drive says
+ * so, and until then the page boots into precisely the recovery state the drive above it
+ * asserted. Nothing is injected into the document either way — this is the browser being
+ * emulated, not the page being edited.
+ *
+ * `sign` is still the twenty-second one the slow-signature drive installed on the same
+ * page, so the successful retry is deliberately slow and the waits below carry their own
+ * budget.
+ */
+async function driveRestoredWebCrypto(page: Page, scanAt: ScanAt): Promise<void> {
+  await page.addInitScript(() => {
+    // The earlier emulation shadows `subtle` with an own property on `window.crypto`; the
+    // prototype's own getter is untouched, and is where the real one is still reachable.
+    const native = Object.getOwnPropertyDescriptor(Crypto.prototype, 'subtle')?.get;
+    const real = native?.call(window.crypto) as SubtleCrypto | undefined;
+    let restored = false;
+    Object.defineProperty(window.crypto, 'subtle', {
+      get: () => (restored ? real : undefined),
+      configurable: true,
+    });
+    Object.defineProperty(window, '__restoreWebCrypto', {
+      value: () => { restored = true; },
+      configurable: true,
+    });
+  });
+  await page.goto('./?mode=demo');
+
+  const act5 = page.locator('#act-5');
+  await expect(act5.locator('.verdict')).toContainText('This run did not finish');
+  await page.evaluate(() =>
+    (window as unknown as { __restoreWebCrypto: () => void }).__restoreWebCrypto());
+
+  const slow = { timeout: 60_000 };
+  await act5.getByRole('button', { name: 'Try again' }).click();
+  await expect(act5.locator('.verdict')).toContainText('Verification passed', slow);
+  // A recovery that leaves its own retry behind is a panel still claiming it failed.
+  await expect(act5.getByRole('button', { name: 'Try again' })).toHaveCount(0);
+
+  // The point of the case. A manifest now exists and is verified, so every control that
+  // acts on one has to be pressable — this is the state the act's own settle describes,
+  // and reaching it through the recovery path must not produce a different one.
+  for (const name of ['Flip one byte of the asset', 'Strip the manifest', 'Verify again']) {
+    await expect(
+      act5.getByRole('button', { name }),
+      `"${name}" is dead after a recovered run that produced a manifest`,
+    ).toBeEnabled();
+  }
+  await scanAt('a browser that got WebCrypto back: the retry succeeded and the act is live');
 }

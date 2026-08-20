@@ -10,6 +10,13 @@
  * pinned value moves, this script either draws the new one or stops; it cannot quietly
  * keep drawing the old one.
  *
+ * The words are held to the same standard as the figures, and the lede is where that was
+ * being lost. It read "the real SynthID-Text detector", which is the vendor's detector and
+ * not what this runs: the lab's own first limitation says the statistic here is the mean
+ * g-score rather than the learned or Bayesian detector the paper's headline results use,
+ * and on the short route that qualification is not on screen at all. The card travels
+ * alone, so it says what the page's own hero says — a real keyed g-value detector.
+ *
  * The icons are generated here too, for one reason: the previous mark was an emoji data
  * URI, drawn by whichever font the reader's platform supplied, so it changed shape between
  * a phone, a laptop and a projector. The replacement is geometry — rectangles, no text
@@ -258,7 +265,7 @@ function socialMarkup(claims) {
     <p class="eyebrow">Crypto Lab · Token Tell</p>
     <h1>Same bytes. Different key. Different verdict.</h1>
     <p class="lede">
-      One watermarked passage, three runs of the real SynthID-Text detector. Runs 1 and 2 are
+      One watermarked passage, three runs of a real keyed g-value detector. Runs 1 and 2 are
       given byte-identical input and differ only in the key.
     </p>
     <div class="cards">${cards.map(cardMarkup).join('')}

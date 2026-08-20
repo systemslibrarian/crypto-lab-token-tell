@@ -13,6 +13,10 @@ import { expect, test } from '@playwright/test';
  * simply is not in it. Keeping the two apart is what makes this file able to catch the one
  * change that would make the page dishonest — a second, shorter render path for the short
  * route, where only one of the two copies is the code under test.
+ *
+ * The offline shell is checked here too, for the same reason: it is a shipped feature with
+ * no rendering of its own, so nothing else in the suite could ever have noticed that what
+ * it precached and what the page declares were two different lists.
  */
 
 const SECTIONS = ['hero-experiment', 'act-1', 'act-2', 'act-3', 'act-4', 'act-5', 'act-6',
@@ -61,6 +65,54 @@ test('every act mounts and computes', async ({ page }) => {
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
+/**
+ * The one shipped feature nothing in this repository had ever looked at.
+ *
+ * The lab installs as an app: the document declares three `<link rel="…icon">` for the tab
+ * strip and the home screen, and `manifest.webmanifest` names three for the installed one.
+ * The service worker is generated at build time from a list of what the build emitted —
+ * and that list came out of Rollup's bundle, which Vite fills in BEFORE it copies
+ * `public/`, so the artwork was the one thing never in it. An installed copy therefore
+ * pointed at files it could not fetch and showed a blank tile with no connection, which is
+ * the whole of the visual identity this lab has.
+ *
+ * Asserted against the page's own declarations rather than against a list of filenames, so
+ * adding a fourth icon to either the document or the web manifest and forgetting the
+ * worker fails here rather than shipping.
+ */
+test('the offline shell precaches every icon the page declares', async ({ page }) => {
+  await page.goto('./');
+  const cached = await page.evaluate(async () => {
+    // Registration is deferred to `load`, and `ready` resolves only once a worker has
+    // activated — which is after its install has finished filling the cache.
+    await navigator.serviceWorker.ready;
+
+    const declared = Array.from(
+      document.querySelectorAll<HTMLLinkElement>('link[rel$="icon"]'),
+    ).map((link) => link.href);
+    const manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    if (manifestLink) {
+      const manifest = await (await fetch(manifestLink.href)).json() as
+        { icons?: { src: string }[] };
+      for (const icon of manifest.icons ?? []) {
+        declared.push(new URL(icon.src, manifestLink.href).href);
+      }
+    }
+
+    const urls = [...new Set(declared)];
+    const missing: string[] = [];
+    for (const url of urls) if (!await caches.match(url)) missing.push(url);
+    return { urls, missing };
+  });
+
+  // Six declarations, four distinct files: the SVG and the 192 are named by both the
+  // document and the web manifest. If either stops declaring any, this stops proving it.
+  expect(cached.urls.length, 'the page must declare its icons somewhere')
+    .toBeGreaterThanOrEqual(4);
+  expect(cached.missing, `declared but not precached: ${cached.missing.join(', ')}`)
+    .toEqual([]);
+});
+
 test('the thesis is stated above the fold, and carried once per act in the full lab',
   async ({ page }) => {
     await page.goto('./');
@@ -83,11 +135,20 @@ test('the thesis is stated above the fold, and carried once per act in the full 
     const strips = page.locator('.thesis-strip');
     await expect(strips).toHaveCount(9);
 
-    // ONE visible in Demo: the hero keeps its strip, and the other eight carry the lab
-    // tag. Stating the thesis once at full size and then eight more times in a row is
-    // what the short route was made to stop doing; repeating it to an auditor working
-    // through nine acts out of order is still worth doing, so Full lab shows all nine.
-    expect(await page.locator('.thesis-strip:visible').count()).toBe(1);
+    // NONE visible in Demo. The strip is a travelling copy of the `.thesis` block, and on
+    // the short route that block is permanently on screen a third of a viewport above the
+    // first act — so the hero's strip was a verbatim restatement, all twenty-seven words
+    // of it, inside the opening twenty seconds. Zero is therefore the number that means
+    // the claim is stated once rather than the number that means it went missing, which
+    // is why the assertion below checks the full claim is still there to be read.
+    expect(await page.locator('.thesis-strip:visible').count()).toBe(0);
+    await expect(page.locator('.thesis-headline')).toBeVisible();
+    await expect(page.locator('.thesis-precise')).toBeVisible();
     await page.goto('./?mode=lab');
+    // The nine in the DOM again first, and it is a retrying assertion for a reason: the
+    // sections do not all mount in the load event any more, so a visible count taken the
+    // instant the navigation resolves is counting a page that is still being built. The
+    // number below is unchanged; only the assumption that the page was finished is.
+    await expect(strips).toHaveCount(9);
     expect(await page.locator('.thesis-strip:visible').count()).toBe(9);
   });

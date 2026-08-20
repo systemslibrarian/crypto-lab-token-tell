@@ -55,10 +55,18 @@ const PROVENANCE_LABELS: Record<ProvenanceKind, string> = {
   pinned: 'PINNED EMPIRICAL DATA',
 };
 
-/** The implementation-provenance label every component on this page has to carry. */
+/**
+ * The implementation-provenance label every component on this page has to carry.
+ *
+ * Deliberately no `title`. The tag's whole text is already on screen, so a tooltip
+ * repeating it carries nothing — and the assistive technologies that expose `title` as an
+ * element's description read the label out a second time, which on the Full lab is
+ * forty-eight duplicated announcements for no added fact. A `title` earns its place only
+ * where it says something the visible text does not.
+ */
 export function provenanceTag(kind: ProvenanceKind, detail?: string): HTMLElement {
   const label = PROVENANCE_LABELS[kind] + (detail ? ` · ${detail}` : '');
-  return el('span', { class: `provenance-tag ${kind}`, title: label, text: label });
+  return el('span', { class: `provenance-tag ${kind}`, text: label });
 }
 
 export type VerdictTone = 'evidence' | 'none' | 'alarm' | 'caution';
@@ -134,12 +142,61 @@ export function disclosure(
   return details;
 }
 
+/**
+ * Below this the value column cannot hold a four-digit figure on one line. The gate's own
+ * bar for a readout value is eight characters and four characters to a line
+ * (`e2e/visual.spec.ts`), which at this face and size is about 57px; the margin above it
+ * is deliberate, because the alternative to stacking early is stacking a character at a
+ * time.
+ */
+const MIN_VALUE_COLUMN_PX = 72;
+
+/**
+ * Stack a readout's pairs when its own box is too narrow to set them side by side.
+ *
+ * This is the container query the stylesheet cannot write. The sheet stacks every readout
+ * below a 640px VIEWPORT, which stands in for "this readout is narrow" and holds right up
+ * to the moment a readout sits in a narrow COLUMN of a wide page: Act III's three entropy
+ * cards are 319px each on a 1052px laptop, the term column takes its max-content 218px,
+ * the values are left 15px, and all eight of them wrap one character to a line. A viewport
+ * query cannot see that, because the viewport is not the thing that got narrow.
+ */
+function stackWhenNarrow(dl: HTMLElement): void {
+  const values = Array.from(dl.querySelectorAll('dd'));
+  const sync = (): void => {
+    // Ask the stylesheet what it would do unaided first: with the override in force, the
+    // computed tracks only ever report the override back.
+    dl.style.removeProperty('grid-template-columns');
+    const tracks = getComputedStyle(dl).gridTemplateColumns
+      .split(' ')
+      .map((track) => Number.parseFloat(track))
+      .filter((track) => Number.isFinite(track));
+    // One track means the sheet has already stacked this readout, and nothing is owed.
+    const valueColumn = tracks.length > 1
+      ? tracks[tracks.length - 1] ?? Number.POSITIVE_INFINITY
+      : Number.POSITIVE_INFINITY;
+    const stack = valueColumn < MIN_VALUE_COLUMN_PX;
+    if (stack) dl.style.gridTemplateColumns = 'minmax(0, 1fr)';
+    // Right alignment is what makes a column of figures comparable; stacked, it only
+    // pushes each value away from the term it belongs to.
+    for (const value of values) value.style.textAlign = stack ? 'left' : '';
+  };
+  // Safe against a resize loop: the decision changes the list's height, never its width,
+  // and the width is what is being observed.
+  new ResizeObserver(sync).observe(dl);
+}
+
 /** A definition-list readout. Every displayed statistic goes through here. */
-export function readout(rows: [string, string][], ariaLabel?: string): HTMLElement {
+export function readout(
+  rows: [string, string][],
+  ariaLabel?: string,
+  options: { stackWhenNarrow?: boolean } = {},
+): HTMLElement {
   const dl = el('dl');
   for (const [term, value] of rows) {
     dl.append(el('dt', { text: term }), el('dd', { text: value }));
   }
+  if (options.stackWhenNarrow) stackWhenNarrow(dl);
   const attributes: Record<string, string> = { class: 'readout' };
   if (ariaLabel) {
     // An aria-label on a role-less element is silently discarded — axe files it under
@@ -162,14 +219,36 @@ export function liveRegion(ariaLabel: string): HTMLElement {
   });
 }
 
-/** A horizontally scrollable region, which needs a role, a label and a tab stop. */
+/**
+ * A scrollable region, which needs a role, a label, and a tab stop only when it actually
+ * scrolls.
+ *
+ * WCAG 2.1.1 wants a keyboard route into a container the mouse can pan; it does not want
+ * a stop at a container that goes nowhere. Whether a given region overflows is a fact
+ * about the viewport rather than about the markup — of the twelve visible on the Full
+ * lab, none overflow at 1440 and six do at 390 — so a literal `tabindex="0"` written once
+ * is wrong at one of those widths whichever value it takes. Twelve stops that announce a
+ * region name and then ignore every arrow key is the more expensive way to be wrong, so
+ * the attribute is measured instead of assumed.
+ *
+ * Both axes are tested because `overflow-x: auto` computes the untouched `overflow-y` to
+ * `auto` as well: a scroller can scroll in the direction its own rule never named, and
+ * the reachability gate tests for exactly that.
+ */
 export function scroller(ariaLabel: string, children: Node[]): HTMLElement {
-  return el('div', {
-    class: 'scroller',
-    role: 'region',
-    'aria-label': ariaLabel,
-    tabindex: '0',
-  }, children);
+  const node = el('div', { class: 'scroller', role: 'region', 'aria-label': ariaLabel },
+    children);
+  const syncTabStop = (): void => {
+    node.tabIndex = node.scrollWidth > node.clientWidth + 1
+      || node.scrollHeight > node.clientHeight + 1
+      ? 0
+      : -1;
+  };
+  // The first notification arrives once the element has been laid out, which is also the
+  // first moment the answer exists — a region still off the document, or inside a closed
+  // disclosure, has no size and correctly gets no tab stop until it does.
+  new ResizeObserver(syncTabStop).observe(node);
+  return node;
 }
 
 export function panel(title: string, children: Node[], tag?: HTMLElement): HTMLElement {
@@ -251,11 +330,15 @@ export function actHeader(
 ): HTMLElement[] {
   const strip = thesisStrip();
   // The claim is worth repeating to an auditor working through nine acts out of order,
-  // and worth stating once to a visitor being walked through five minutes of it. The hero
-  // keeps its strip in both depths; every later act carries the lab tag. The attribute
-  // name is the one `mode.ts` reads — it is written literally here so the helpers file
-  // stays free of a dependency on the mode.
-  if (id !== 'hero-experiment') strip.dataset.depth = 'lab';
+  // and worth stating ONCE to a visitor being walked through ninety seconds of it. So
+  // every strip carries the lab tag, the hero's included: in the short route the strip
+  // shares all twenty-seven of its distinct words with the `.thesis` block a third of a
+  // screen above it, and a presenter reading the same sentence to the room twice inside
+  // the opening twenty seconds is the repetition chad.md asked to remove. Nothing is lost
+  // by it — the full claim and its precise form are both still on screen, larger, in the
+  // block this strip was only ever a travelling copy of. The attribute name is written
+  // literally so this helpers file stays free of a dependency on the mode.
+  strip.dataset.depth = 'lab';
   return [
     el('p', { class: 'act-kicker', text: kicker }),
     el('h2', { id: `${id}-heading`, text: title }),

@@ -11,10 +11,16 @@
  * break, every run is guarded so a WebCrypto failure is answered on the page instead of by
  * a permanently dead button, and one press restores the shipped text and a fresh signature.
  *
- * Each run also closes with a line saying what was changed and what that did, read off the
- * validation result rather than off the button that was pressed. The two are not the same
- * thing: flipping the same byte twice puts it back, and a story told from the button would
- * then announce a failure the page is not showing.
+ * Each run also closes with a line saying what was changed and what that did, both halves
+ * read off the validation result rather than off the button that was pressed. The two are
+ * not the same thing: flipping the same byte twice puts it back, and a story told from the
+ * button would then announce a failure the page is not showing — or, worse, keep claiming
+ * a byte was changed while the panel shows the signature verifying again.
+ *
+ * The same rule governs the two verdicts. Neither act can read a sentence, so neither may
+ * say anything about what a sentence means: Act VI calls the shipped 1687 claim a lie
+ * because this file wrote it, and says only that verification passed the moment a visitor
+ * puts their own words in the box.
  */
 
 import texts from '../data/pinned/texts.json';
@@ -31,7 +37,7 @@ import {
   actHeader, button, clear, consequence, disclosure, el, integer, liveRegion, panel,
   provenanceTag, readout, scroller, verdict,
 } from './dom.ts';
-import { param, setParam } from './mode.ts';
+import { onModeChange, param, setParam } from './mode.ts';
 
 const CLAIM_OPTIONS = {
   claimGenerator: 'crypto-lab-token-tell/0.1.0',
@@ -57,6 +63,123 @@ const RECHECKING = 'Re-checking the manifest against the asset…';
 let coldMountAct5 = true;
 let coldMountAct6 = true;
 
+/* ---------------------------------------------------------------------------------------
+   The reveal a press earns.
+
+   Both acts compute on arrival and arrive complete, and that has to stay true: the deep
+   links restore a settled panel, the accessibility gate scans arrival as a finished state,
+   and a screenshot of a page still assembling itself proves nothing. But a panel that
+   already says what pressing the button will say makes the press itself a no-op — the two
+   beats chad's script spends forty seconds on were both pre-played, and pressing "Sign it"
+   changed not one character on the page.
+
+   So the sequence exists but nobody performs it unasked. The press arms the stage; the
+   mount does not. The staging then happens INSIDE the guarded run, which is what keeps the
+   busy text, the aria-busy attribute and the switched-off controls spanning the whole
+   reveal instead of the few milliseconds of arithmetic underneath it. Under a reduced
+   motion preference there are no timers at all, because the request is for the answer
+   rather than for a faster performance of it.
+   --------------------------------------------------------------------------------------- */
+
+/** Three parts, so a full reveal takes 600ms — long enough to read, short enough to press
+ *  through. The hero's five-beat replay runs to 3.9s; one panel is not that story. */
+const REVEAL_STEP_MS = 200;
+
+interface Stage {
+  /** A press asks for the sequence. Nothing else does. */
+  arm(): void;
+  /**
+   * Put the parts on screen: at once, or one beat at a time when a press armed it. The
+   * waiting line is required rather than optional because the alternative is a region that
+   * collapses to an empty box and springs back — the reflow the hero's placeholders exist
+   * to stop, and a rendering that reads as a result of its own.
+   */
+  present(region: HTMLElement, parts: HTMLElement[], waiting: string): Promise<void>;
+  /** Land on the finished panel now — half a verdict is the state this must never leave. */
+  settle(): void;
+  /** Give up the depth subscription, for a render pass that has replaced this act's DOM. */
+  stop(): void;
+}
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function makeStage(): Stage {
+  let timers: number[] = [];
+  let armed = false;
+  let land: (() => void) | null = null;
+
+  const settle = (): void => {
+    for (const timer of timers) window.clearTimeout(timer);
+    timers = [];
+    // A reveal that is cut short still has to resolve: the guarded run awaiting it is
+    // holding every control in the act switched off until it does.
+    const finish = land;
+    land = null;
+    finish?.();
+  };
+
+  // A depth change is not a request to watch the rest of an animation, and it can arrive
+  // part-way through one, so it lands the panel on the state the sequence was heading for.
+  const detachDepth = onModeChange(settle);
+
+  return {
+    arm(): void { armed = true; },
+    settle,
+    stop(): void { settle(); detachDepth(); },
+    present(region: HTMLElement, parts: HTMLElement[], waiting: string): Promise<void> {
+      settle();
+      const staged = armed && !prefersReducedMotion();
+      armed = false;
+      // Emptied only once the replacement is ready: on a projector a panel that blanks and
+      // refills on its own reads as a result. Here the blank was asked for, and it says so.
+      clear(region);
+      if (!staged) {
+        region.append(...parts);
+        return Promise.resolve();
+      }
+      const placeholder = el('p', { class: 'result-waiting', text: waiting });
+      region.append(placeholder);
+      return new Promise<void>((resolve) => {
+        let next = 0;
+        const show = (): void => {
+          placeholder.remove();
+          region.append(parts[next]);
+          next += 1;
+        };
+        land = (): void => {
+          while (next < parts.length) show();
+          resolve();
+        };
+        for (let index = 0; index < parts.length; index += 1) {
+          timers.push(window.setTimeout(() => {
+            show();
+            if (next < parts.length) return;
+            timers = [];
+            land = null;
+            resolve();
+          }, (index + 1) * REVEAL_STEP_MS));
+        }
+      });
+    },
+  };
+}
+
+/**
+ * One stage per act, held across renders. main.ts rebuilds both acts for the global reset,
+ * and a timer written for the panel that has just been replaced would otherwise put a
+ * verdict back into a node that is no longer in the document.
+ */
+const STAGES = new Map<string, Stage>();
+
+function remountStage(act: string): Stage {
+  STAGES.get(act)?.stop();
+  const stage = makeStage();
+  STAGES.set(act, stage);
+  return stage;
+}
+
 function defaultAssertions(): Assertion[] {
   return [
     {
@@ -81,8 +204,12 @@ function defaultAssertions(): Assertion[] {
  * signing half of the page — and the browser's own message for it names a property, not a
  * cause. Failing early with the cause spelled out is the difference between a presenter
  * recovering in one sentence and a presenter apologising.
+ *
+ * Exported because Act VII signs too, and the browser's own message for the same loss —
+ * "Cannot read properties of undefined (reading 'generateKey')" — is a V8 internal string
+ * in the one place a reader most needs the cause written out.
  */
-function requireWebCrypto(): void {
+export function requireWebCrypto(): void {
   if (globalThis.crypto?.subtle) return;
   throw new Error(
     'This browser gave the page no WebCrypto. crypto.subtle exists only in a secure ' +
@@ -135,9 +262,14 @@ function requestedMutation(): Mutation | null {
 
 export function renderAct5(root: HTMLElement): void {
   clear(root);
+  const stage = remountStage(ACT_5);
+  // The numeral is the anchor, the README and the verifier's name for this beat; the noun
+  // phrase is the chapter chip standing directly above it. Carrying both is what stops a
+  // visitor twenty-five seconds into the short route being told they are at Act V of
+  // something whose first four acts the page is not offering them.
   root.append(...actHeader(
     'act-5',
-    'Act V',
+    'Act V · Sign it',
     'Sign the same text',
     'The same words that carried a statistical watermark, now carrying a signature. One ' +
     'byte decides this one, and there is no threshold anywhere in it.',
@@ -153,6 +285,14 @@ export function renderAct5(root: HTMLElement): void {
 
   const progress = el('p', { class: 'progress', role: 'status', 'aria-live': 'polite' });
   const status = liveRegion('Signature status');
+  /**
+   * The two digests live beside the live region rather than inside it. They are the audit
+   * detail a reader goes looking for and never the answer to "what happened when I pressed
+   * that": one press of the global reset used to announce this act as a paragraph ending in
+   * the same sixty-four hex characters twice, read out one character at a time. On screen
+   * they have not moved.
+   */
+  const hashView = el('div');
   const manifestView = el('div');
 
   const state: {
@@ -160,7 +300,11 @@ export function renderAct5(root: HTMLElement): void {
     manifest: Manifest | null;
     asset: Uint8Array;
     signed: boolean;
-  } = { keys: null, manifest: null, asset: encodeUtf8(original), signed: false };
+    /** The text the result on screen was computed from; null once an edit retired it. */
+    verifiedText: string | null;
+  } = {
+    keys: null, manifest: null, asset: encodeUtf8(original), signed: false, verifiedText: null,
+  };
 
   let manifestOpen = false;
 
@@ -194,26 +338,34 @@ export function renderAct5(root: HTMLElement): void {
     const label = !result.manifestPresent
       ? 'No manifest'
       : result.valid ? 'Verification passed' : 'Verification failed';
-    // Emptied only once the replacement is ready: on a projector a panel that blanks and
-    // refills reads as a result of its own.
-    clear(status);
-    status.append(verdict(tone, label, result.summary));
-    status.append(consequence(change, effectOf(result)));
-    status.append(readout([
-      ['Manifest present', result.manifestPresent ? 'yes' : 'no'],
-      ['Signature present', result.signaturePresent ? 'yes' : 'no'],
-      ['Signature verifies', result.signatureValid ? 'yes' : 'no'],
-      ['Hard binding matches the asset', result.bindingValid ? 'yes' : 'no'],
-      ['Assertion hashes match', result.assertionChecks.every((c) => c.matches) ? 'yes' : 'no'],
-      ['Asset bytes now', integer(result.actualAssetLength)],
-      ['Asset bytes when signed',
-        result.recordedAssetLength === null ? 'n/a' : integer(result.recordedAssetLength)],
-    ], 'Validation detail'));
-    status.append(el('dl', { class: 'readout' }, [
-      el('dt', { text: 'Recorded asset hash' }),
-      el('dd', { class: 'hash', text: result.recordedAssetHash ?? 'n/a' }),
-      el('dt', { text: 'Actual asset hash' }),
-      el('dd', { class: 'hash', text: result.actualAssetHash ?? 'n/a' }),
+    // What the numbers below are about. Recorded here rather than by each caller, because
+    // every route to a result comes through this function and none of them may leave the
+    // panel claiming a verdict about bytes that are no longer in the box.
+    state.verifiedText = assetInput.value;
+    clear(hashView);
+    await stage.present(status, [
+      verdict(tone, label, result.summary),
+      consequence(change, effectOf(result)),
+      readout([
+        ['Manifest present', result.manifestPresent ? 'yes' : 'no'],
+        ['Signature present', result.signaturePresent ? 'yes' : 'no'],
+        ['Signature verifies', result.signatureValid ? 'yes' : 'no'],
+        ['Hard binding matches the asset', result.bindingValid ? 'yes' : 'no'],
+        ['Assertion hashes match', result.assertionChecks.every((c) => c.matches) ? 'yes' : 'no'],
+        ['Asset bytes now', integer(result.actualAssetLength)],
+        ['Asset bytes when signed',
+          result.recordedAssetLength === null ? 'n/a' : integer(result.recordedAssetLength)],
+      ], 'Validation detail'),
+    ], 'Signing, then checking the manifest against these exact bytes…');
+    hashView.append(el('div', {
+      class: 'readout', role: 'group', 'aria-label': 'Asset digests',
+    }, [
+      el('dl', {}, [
+        el('dt', { text: 'Recorded asset hash' }),
+        el('dd', { class: 'hash', text: result.recordedAssetHash ?? 'n/a' }),
+        el('dt', { text: 'Actual asset hash' }),
+        el('dd', { class: 'hash', text: result.actualAssetHash ?? 'n/a' }),
+      ]),
     ]));
   };
 
@@ -235,10 +387,13 @@ export function renderAct5(root: HTMLElement): void {
     bytes[Math.floor(bytes.length / 2)] ^= 0x01;
     state.asset = bytes;
     assetInput.value = new TextDecoder().decode(bytes);
-    await showValidation('Changed one byte');
-    // The flip is its own undo, so what the link records is what the bytes say, not how
-    // many times the button was pressed.
-    setParam(SIGN_PARAM, assetInput.value === original ? null : 'tampered');
+    // The flip is its own undo, so both the sentence and the link record what the bytes
+    // say rather than how many times the button was pressed. Pressing it twice restores
+    // exactly what was signed, and "changed one byte → verification passed" would teach a
+    // room that a signature tolerates a one-byte edit — the opposite of what is on screen.
+    const restored = assetInput.value === original;
+    await showValidation(restored ? 'Put the byte back' : 'Changed one byte');
+    setParam(SIGN_PARAM, restored ? null : 'tampered');
   };
 
   const stripManifest = async (): Promise<void> => {
@@ -253,6 +408,9 @@ export function renderAct5(root: HTMLElement): void {
     // reads the box: a presenter who has typed in it has changed the asset, and a check
     // that ignored the edit would be reporting on bytes nobody can see.
     state.asset = encodeUtf8(assetInput.value);
+    // An edit takes the manifest off the page along with the verdict it belonged to. This
+    // is the press that answers for the new bytes, so it is the press that puts it back.
+    renderManifest();
     await showValidation('Checked the bytes in the box again');
   };
 
@@ -266,6 +424,9 @@ export function renderAct5(root: HTMLElement): void {
 
   const signIt = button('Sign it', () => {
     markAnchor(ACT_5);
+    // The one press in this act that is a demonstration rather than a correction, and the
+    // only one that stages: the audience is being shown a signature being made.
+    stage.arm();
     void perform(sign, SIGNING);
   }, true);
   const flipByte = button('Flip one byte of the asset', () => {
@@ -290,22 +451,51 @@ export function renderAct5(root: HTMLElement): void {
   /**
    * Nothing that breaks a manifest is offered before one exists: an audience watching
    * "Flip one byte of the asset" act on a page with no manifest learns the wrong lesson
-   * about which failure is which. Re-checking survives a strip, because "there is nothing
-   * left to verify" is one of the three outcomes this act exists to tell apart.
+   * about which failure is which. Nor after an edit has retired the result — breaking a
+   * verification the page has already withdrawn is a demonstration of nothing. Re-checking
+   * survives both, because it is the way back from either: "there is nothing left to
+   * verify" is one of the three outcomes this act exists to tell apart, and a re-check is
+   * what answers for whatever is in the box now.
    */
   const settleControls = (): void => {
-    flipByte.disabled = state.manifest === null;
-    stripIt.disabled = state.manifest === null;
+    const breakable = state.manifest !== null && state.verifiedText !== null;
+    flipByte.disabled = !breakable;
+    stripIt.disabled = !breakable;
     verifyIt.disabled = !state.signed;
   };
   settleControls();
 
+  /**
+   * A verdict that outlives its input is worse than no verdict — and this is the act where
+   * that costs the most. A green "Verification passed" standing over visibly different text
+   * is the precise misreading the whole page exists to prevent, and "Asset bytes now: 399"
+   * beside a box holding 426 characters is simply a false statement.
+   */
+  const retire = (): void => {
+    // Re-typing the same text is not a change: a no-op must not retire a fresh verdict.
+    if (state.verifiedText === null || assetInput.value === state.verifiedText) return;
+    state.verifiedText = null;
+    stage.settle();
+    clear(status);
+    clear(hashView);
+    clear(manifestView);
+    status.append(el('p', { class: 'note', 'data-retired': 'true' }, [
+      'These bytes changed, so the previous verification was retired. Press Verify again ' +
+      'for a result about what is in the box now.',
+    ]));
+    settleControls();
+  };
+  assetInput.addEventListener('input', retire);
+
   const perform = async (action: () => Promise<void>, busyText: string): Promise<void> => {
     // The guard restores whatever each control was before the run, which is the right
     // default and the wrong answer here: the run is exactly what decides which of them
-    // should now be available. So the settle comes after it, not inside the action.
-    await runGuarded(action, { controls, region: status, progress, busyText });
-    settleControls();
+    // should now be available. Settled through the guard rather than after this await,
+    // because the retry the guard offers on a failure calls back into it directly — a
+    // recovered run used to leave every control it had just made available switched off.
+    await runGuarded(action, {
+      controls, region: status, progress, busyText, onSettled: settleControls,
+    });
   };
 
   for (const node of [flipByte, stripIt, verifyIt]) {
@@ -330,6 +520,7 @@ export function renderAct5(root: HTMLElement): void {
     el('div', { class: 'controls' }, controls),
     progress,
     status,
+    hashView,
     manifestView,
   ], provenanceTag('demo', 'C2PA-shaped, not conformant')));
 
@@ -365,12 +556,16 @@ export function renderAct5(root: HTMLElement): void {
 
 export function renderAct6(root: HTMLElement): void {
   clear(root);
+  const stage = remountStage(ACT_6);
   root.append(...actHeader(
     'act-6',
-    'Act VI',
+    'Act VI · Sign a lie',
     'A signature can sign a lie',
-    'Compose something plainly false, sign it with the same real key, and verify it. The ' +
-    'verification passes, because that is not the question a signature answers.',
+    // Not "the same real key". This act holds its own keypair, and on the short route it
+    // sits directly beneath Act V, where "the same" reads as "the key you just watched" —
+    // a claim a reader who opened both manifests would find two public keys under.
+    'Compose something plainly false, sign it with a real key of its own, and verify it. ' +
+    'The verification passes, because that is not the question a signature answers.',
   ));
 
   const original =
@@ -390,10 +585,19 @@ export function renderAct6(root: HTMLElement): void {
 
   let detailOpen = false;
 
+  const state: {
+    /** One keypair for the act, not one per press: "signed with a session key" has to be
+     *  a fact a reader can check by opening two manifests, not a shape of words. */
+    keys: KeyPairMaterial | null;
+    /** The statement the result on screen was computed from. */
+    signedText: string | null;
+  } = { keys: null, signedText: null };
+
   const signAndVerify = async (): Promise<void> => {
     requireWebCrypto();
     const asset = encodeUtf8(claimInput.value);
-    const keys = await generateSignerKeyPair();
+    state.keys = state.keys ?? await generateSignerKeyPair();
+    const keys = state.keys;
     const assertions: Assertion[] = [{
       label: 'stds.schema-org.CreativeWork',
       data: {
@@ -408,28 +612,42 @@ export function renderAct6(root: HTMLElement): void {
     const result = await validateManifest(manifest, asset);
     const digest = await sha256Hex(asset);
 
-    clear(status);
-    status.append(verdict(
-      result.valid ? 'alarm' : 'none',
-      result.valid ? 'Verification passed — on a false statement' : 'Verification failed',
-      'A valid signature proves that the signed bytes are intact and bound to the signing ' +
-      'key. It does not prove that the claim inside those bytes is true.',
-    ));
-    // Only the effect is derived. Whether the statement is false is not something this
-    // page can compute — which is the act's entire point, and why the readout below
-    // answers the truth question by declining it.
-    status.append(consequence('Signed a lie', result.valid
-      ? 'integrity passed; truth remained unanswered.'
-      : 'integrity failed; truth remained unanswered either way.'));
-    status.append(readout([
-      ['Signature verifies', result.signatureValid ? 'yes' : 'no'],
-      ['Hard binding matches', result.bindingValid ? 'yes' : 'no'],
-      ['Assertion hashes match', result.assertionChecks.every((c) => c.matches) ? 'yes' : 'no'],
-      ['Statement is true', 'not a question this mechanism can answer'],
-      ['Assertion claims creation date', '1687-01-01'],
-    ], 'Signed-lie verification'));
-
+    /**
+     * Whether the statement is false is not something this page can compute — which is the
+     * act's entire point, and why the readout below answers the truth question by declining
+     * it. There is exactly one falsehood here the code knows about: the 1687 claim this
+     * file shipped. The textarea is labelled, editable and invited to be edited, so the
+     * moment a visitor's own sentence is in it the page has no standing to call it a lie,
+     * and the honest verdict is the narrower one it can actually support.
+     */
+    const shipped = claimInput.value.trim() === original.trim();
+    state.signedText = claimInput.value;
     clear(detail);
+
+    // The tone does not move with the wording. What the alarm is about is a passing
+    // verification being read as a fact-check, and that misreading is available whatever
+    // the sentence says.
+    await stage.present(status, [
+      verdict(
+        result.valid ? 'alarm' : 'none',
+        result.valid
+          ? (shipped ? 'Verification passed — on a false statement' : 'Verification passed')
+          : 'Verification failed',
+        'A valid signature proves that the signed bytes are intact and bound to the ' +
+        'signing key. It does not prove that the claim inside those bytes is true.',
+      ),
+      consequence(shipped ? 'Signed a lie' : 'Signed this statement', result.valid
+        ? 'integrity passed; truth remained unanswered.'
+        : 'integrity failed; truth remained unanswered either way.'),
+      readout([
+        ['Signature verifies', result.signatureValid ? 'yes' : 'no'],
+        ['Hard binding matches', result.bindingValid ? 'yes' : 'no'],
+        ['Assertion hashes match', result.assertionChecks.every((c) => c.matches) ? 'yes' : 'no'],
+        ['Statement is true', 'not a question this mechanism can answer'],
+        ['Assertion claims creation date', '1687-01-01'],
+      ], 'Signed-lie verification'),
+    ], 'Signing the statement, then checking the signature over it…');
+
     const view = disclosure('Show what was signed', () => [
       scroller('Signed claim bytes', [
         el('pre', { class: 'mono', text: canonicalize(manifest.claim) }),
@@ -445,13 +663,35 @@ export function renderAct6(root: HTMLElement): void {
     detail.append(view);
   };
 
+  /**
+   * An edit is a new statement, and the verdict above it was about the old one. Same
+   * doctrine as Act II and Act V: a page that leaves "Verification passed" standing over a
+   * sentence it never signed is teaching exactly the misreading this act exists to correct.
+   */
+  const retire = (): void => {
+    if (state.signedText === null || claimInput.value === state.signedText) return;
+    state.signedText = null;
+    stage.settle();
+    clear(status);
+    clear(detail);
+    status.append(el('p', { class: 'note', 'data-retired': 'true' }, [
+      'This statement changed, so the previous verification was retired. Press Sign and ' +
+      'verify it for a result about what is in the box now.',
+    ]));
+  };
+  claimInput.addEventListener('input', retire);
+
   const signIt = button('Sign and verify it', () => {
     markAnchor(ACT_6);
+    stage.arm();
     void perform(signAndVerify);
   }, true);
   const reset = resetButton('Reset act', () => {
     markAnchor(ACT_6);
     claimInput.value = original;
+    // The act's key goes back with its text. A reset that kept the keypair would leave the
+    // panel's "session key" describing a session the reader has just been told is over.
+    state.keys = null;
     void perform(signAndVerify);
   });
 

@@ -40,6 +40,10 @@ export function setParam(name: string, value: string | null): void {
   const url = new URL(window.location.href);
   if (value === null) url.searchParams.delete(name);
   else url.searchParams.set(name, value);
+  // An address that already says this is left alone. Some of the callers run on every
+  // change of section rather than on every deliberate act, and a browser answers a burst
+  // of identical history writes by throttling the next real one.
+  if (url.href === window.location.href) return;
   window.history.replaceState(window.history.state, '', url);
 }
 
@@ -62,11 +66,24 @@ function writeStored(mode: Mode): void {
   }
 }
 
+/**
+ * What the address asks for, or nothing if it does not ask.
+ *
+ * Case and stray whitespace are a link that has been through a chat client, not a
+ * different request, so they are normalised away. A parameter that is present but still
+ * unrecognised is a different matter: it is a link that meant something, and answering it
+ * with whatever this browser last looked at would hand two people who followed the same
+ * link two different pages. It falls back to the shipped default instead.
+ */
+function requestedMode(): Mode | null {
+  const raw = param(MODE_PARAM);
+  if (raw === null) return null;
+  const normalised = raw.trim().toLowerCase();
+  return normalised === 'lab' || normalised === 'demo' ? normalised : 'demo';
+}
+
 function resolve(): Mode {
-  const requested = param(MODE_PARAM);
-  const chosen: Mode = requested === 'lab' || requested === 'demo'
-    ? requested
-    : (readStored() ?? 'demo');
+  const chosen: Mode = requestedMode() ?? readStored() ?? 'demo';
   writeStored(chosen);
   setParam(MODE_PARAM, chosen);
   return chosen;
@@ -145,6 +162,53 @@ export function goToLab(anchorId: string): void {
   setMode('lab', { anchor: anchorId });
 }
 
+/**
+ * The depth is edited into the address in place, but the anchors around it are real
+ * history entries, so Back can land on an address whose `?mode=` is not the depth on
+ * screen. Nothing else would notice: the page would sit there showing the full lab while
+ * its own URL said Demo, and the segmented control would agree with the page rather than
+ * with the link the reader had just gone back to. So the address is re-read whenever the
+ * browser moves through history, and the page is made to match it.
+ */
+window.addEventListener('popstate', () => {
+  if (active === null) return;
+  const wanted = requestedMode() ?? readStored() ?? 'demo';
+  if (wanted === active) return;
+  // The entry being returned to names a section as well as a depth, and the depth change
+  // is about to move that section by the height of everything it shows or hides. The
+  // browser has already done its own jump by then, against the old document.
+  const anchor = window.location.hash.slice(1);
+  const keep = anchor.length > 0 && shownAt(wanted, anchor);
+  setMode(wanted, keep ? { anchor } : {});
+});
+
+/**
+ * The section the reader is looking at, taken from the chapter control's own mark rather
+ * than measured again here. The mark is what the reader can see; a second opinion computed
+ * a different way would sooner or later disagree with it, and then a depth switch would
+ * land somewhere the reader had no reason to expect.
+ */
+function markedSectionId(): string | null {
+  const marked = document.querySelector('.chapters-link[aria-current="true"]');
+  const href = marked?.getAttribute('href') ?? '';
+  return href.startsWith('#') ? href.slice(1) : null;
+}
+
+/** Whether a section survives at the given depth — its own tag, or an ancestor's. */
+function shownAt(mode: Mode, id: string): boolean {
+  const tagged = document.getElementById(id)?.closest<HTMLElement>('[data-depth]');
+  const depth = tagged?.dataset.depth;
+  if (depth !== 'lab' && depth !== 'demo') return true;
+  return depth === mode;
+}
+
+function clearHash(): void {
+  const url = new URL(window.location.href);
+  if (!url.hash) return;
+  url.hash = '';
+  window.history.replaceState(window.history.state, '', url);
+}
+
 const OPTIONS: { mode: Mode; label: string }[] = [
   { mode: 'demo', label: 'Demo' },
   { mode: 'lab', label: 'Full lab' },
@@ -166,7 +230,22 @@ export function renderModeControl(): HTMLElement {
   const buttons = OPTIONS.map(({ mode, label }) => {
     const glyph = el('span', { class: 'mode-switch-glyph', 'aria-hidden': 'true' });
     const node = el('button', { type: 'button', class: 'mode-switch-option' }, [glyph, label]);
-    node.addEventListener('click', () => setMode(mode));
+    // Changing depth is not changing subject: the reader stays on the section they were
+    // reading, because everything above it has just grown or shrunk by ten thousand pixels
+    // and leaving them at the same offset would put them somewhere neither depth chose.
+    // A section the target depth does not hold is the one case with nowhere to stay — the
+    // top of the page is where the shorter document ends up anyway — and its anchor goes
+    // with it, because a link naming a hidden section is a link that opens on nothing.
+    node.addEventListener('click', () => {
+      const changing = mode !== currentMode();
+      const here = changing ? markedSectionId() : null;
+      if (here !== null && shownAt(mode, here)) {
+        setMode(mode, { anchor: here });
+        return;
+      }
+      setMode(mode);
+      if (here !== null) clearHash();
+    });
     return { mode, label, node, glyph };
   });
 

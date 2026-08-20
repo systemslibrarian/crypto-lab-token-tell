@@ -27,7 +27,7 @@ import { resetButton, runGuarded } from './busy.ts';
 import { lineChart } from './chart.ts';
 import {
   actHeader, button, clear, consequence, disclosure, el, fixed, integer, liveRegion,
-  nextFrame, panel, provenanceTag, readout, scroller,
+  nextFrame, panel, provenanceTag, readout, scroller, srOnly,
 } from './dom.ts';
 import { thresholdForLength } from './score-card.ts';
 import type { ThresholdInfo } from './score-card.ts';
@@ -110,11 +110,23 @@ function renderLiveAttacks(resetPinned: () => void): HTMLElement {
   const output = liveRegion('Attack sweep results');
   const chartHost = el('div');
   const tableHost = el('div');
-  const progress = el('p', { class: 'progress', role: 'status', 'aria-live': 'polite' });
+  // The progress line is for eyes. It repaints once per strength so a sighted reader can
+  // see the page is working rather than hung, and that is the whole of its job.
+  const progress = el('p', { class: 'progress' });
+  // It is emphatically NOT a live region. A polite region queues rather than coalesces, so
+  // a sweep that finished in 929ms handed a screen reader six separate strings to read out
+  // in turn, and the answer the reader had actually asked for arrived at the back of that
+  // queue. The run says once that it has started; the region below says once what it
+  // found, when the guard lifts `aria-busy` from it.
+  const announcer = srOnly('');
+  announcer.setAttribute('role', 'status');
+  announcer.setAttribute('aria-live', 'polite');
 
   const sweep = async () => {
     clear(output); clear(chartHost); clear(tableHost);
     progress.textContent = 'Sweeping…';
+    announcer.textContent = 'Sweeping the three attacks. The results will be announced when ' +
+      'it finishes.';
     const tok = tokenizer();
     const original = tok.encode(texts.samples.watermarked.text);
     const baseline = scoreTokens(original, watermarkParams, defaultConstruction, GPT2_EOS);
@@ -267,12 +279,13 @@ function renderLiveAttacks(resetPinned: () => void): HTMLElement {
   const start = (): Promise<void> => runGuarded(sweep, {
     controls: [runButton, resetControl],
     region: output,
-    onError: () => { progress.textContent = ''; },
+    onError: () => { progress.textContent = ''; announcer.textContent = ''; },
   });
 
   const reset = () => {
     clear(output); clear(chartHost); clear(tableHost);
     progress.textContent = '';
+    announcer.textContent = '';
     resetPinned();
   };
 
@@ -294,6 +307,7 @@ function renderLiveAttacks(resetPinned: () => void): HTMLElement {
     ]),
     el('div', { class: 'controls' }, [runButton, resetControl]),
     progress,
+    announcer,
     output,
     chartHost,
     tableHost,

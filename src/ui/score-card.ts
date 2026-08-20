@@ -21,7 +21,7 @@ import { binomialUpperTail, normalApproximation } from '../watermark/frequentist
 import type { ScoreResult } from '../watermark/score.ts';
 import { NULL_EXPECTED_MEAN } from '../watermark/score.ts';
 import {
-  disclosure, el, fixed, integer, provenanceTag, pValue, readout, verdict,
+  disclosure, el, fixed, integer, provenanceTag, pValue, readout, srOnly, verdict,
 } from './dom.ts';
 import type { VerdictTone } from './dom.ts';
 
@@ -136,6 +136,28 @@ export function scoreVerdict(result: ScoreResult, threshold: ThresholdInfo): {
 }
 
 /**
+ * The two null tests behind one score, computed once.
+ *
+ * The exact tail is a walk over the binomial, and the summary card asks for it twice — once
+ * for the figure it promotes and once for the row inside the calculation trail, which is
+ * built eagerly so the claims suite can read it through a closed disclosure. Two identical
+ * walks per card, three cards, on every render is a measurable share of the hero's first
+ * paint, and the second walk cannot disagree with the first if there is only one.
+ */
+interface Statistics {
+  readonly exact: ReturnType<typeof binomialUpperTail> | null;
+  readonly approximation: ReturnType<typeof normalApproximation> | null;
+}
+
+function statistics(result: ScoreResult): Statistics {
+  if (result.score === null) return { exact: null, approximation: null };
+  return {
+    exact: binomialUpperTail(result.gSum, result.gValueCount),
+    approximation: normalApproximation(result.score, result.scoredPositions, result.depth),
+  };
+}
+
+/**
  * Every statistic behind one score, in the order it has always been printed.
  *
  * Shared by both card forms rather than written twice: the summary card hides these rows
@@ -146,13 +168,9 @@ function statisticRows(
   result: ScoreResult,
   threshold: ThresholdInfo,
   empirical?: ScoreCardOptions['empirical'],
+  computed?: Statistics,
 ): [string, string][] {
-  const approximation = result.score === null
-    ? null
-    : normalApproximation(result.score, result.scoredPositions, result.depth);
-  const exact = result.score === null
-    ? null
-    : binomialUpperTail(result.gSum, result.gValueCount);
+  const { exact, approximation } = computed ?? statistics(result);
 
   const rows: [string, string][] = [
     ['Mean g-score', fixed(result.score)],
@@ -240,6 +258,12 @@ export interface ResultCardOptions extends ScoreCardOptions {
 export interface ResultCard {
   readonly node: HTMLElement;
   readonly body: HTMLElement;
+  /**
+   * The promoted mean, handed back for the same reason `body` is: the hero has to know
+   * whether the decisive figure ended up below the fold before it decides where to leave
+   * the page, and a selector for it would stop matching without saying so.
+   */
+  readonly figure: HTMLElement;
 }
 
 /**
@@ -261,17 +285,35 @@ function metric(label: string, value: string, major = false): HTMLElement {
 export function renderResultCard(result: ScoreResult, options: ResultCardOptions): ResultCard {
   const threshold = thresholdForLength(result.tokenCount);
   const decision = scoreVerdict(result, threshold);
-  const exact = result.score === null
-    ? null
-    : binomialUpperTail(result.gSum, result.gValueCount);
+  const computed = statistics(result);
+  const { exact } = computed;
 
   const call = verdict(decision.tone, decision.label, decision.detail);
   call.classList.add('result-verdict');
 
+  const figure = metric('Mean g-score', fixed(result.score), true);
+
+  // Three of these cards stand side by side, so three controls called nothing but "Show
+  // calculation" is what a screen reader's control list gets: the page's central result,
+  // three times, told apart by tab order alone. The scenario is added for a reader who
+  // hears the name and not the headline above it; the visible label is left as it was, so
+  // the visible string stays a prefix of the accessible one and the three cards keep the
+  // same shape at every width.
+  //
+  // Eager, not lazy: the claims suite re-derives the mean from the sum and the count
+  // through this closed summary, and a body built on first open reads as an empty string.
+  const calculation = disclosure('Show calculation', () => [
+    el('p', { class: 'note', text: `${options.subject} · ${options.constructionLabel}` }),
+    readout(statisticRows(result, threshold, options.empirical, computed),
+      `${options.subject} statistics`),
+    provenanceNote(threshold),
+  ], { class: 'result-calculation', eager: true });
+  calculation.querySelector('summary')?.append(srOnly(` · ${options.headline}`));
+
   const body = el('div', { class: 'result-body' }, [
     call,
     el('dl', { class: 'result-metrics' }, [
-      metric('Mean g-score', fixed(result.score), true),
+      figure,
       metric(
         `Threshold at FPR ${(threshold.falsePositiveRate * 100).toFixed(0)}%`,
         threshold.value === null ? 'not measured at this length' : fixed(threshold.value),
@@ -282,14 +324,7 @@ export function renderResultCard(result: ScoreResult, options: ResultCardOptions
       ),
     ]),
     el('p', { class: 'result-change', text: options.change }),
-    // Eager, not lazy: the claims suite re-derives the mean from the sum and the count
-    // through this closed summary, and a body built on first open reads as an empty string.
-    disclosure('Show calculation', () => [
-      el('p', { class: 'note', text: `${options.subject} · ${options.constructionLabel}` }),
-      readout(statisticRows(result, threshold, options.empirical),
-        `${options.subject} statistics`),
-      provenanceNote(threshold),
-    ], { class: 'result-calculation', eager: true }),
+    calculation,
   ]);
 
   return {
@@ -302,5 +337,6 @@ export function renderResultCard(result: ScoreResult, options: ResultCardOptions
       body,
     ]),
     body,
+    figure,
   };
 }

@@ -10,7 +10,7 @@
  * Nothing here is precomputed. The scores are produced by the same functions Act II
  * exposes, called on the same committed token ids.
  *
- * Two staging decisions are encoded here and worth naming. The first is that the identity
+ * Three staging decisions are encoded here and worth naming. The first is that the identity
  * claim is compressed to one sentence with the digests a click behind it: three
  * sixty-four-character hex runs above the cards are the checkable part of the experiment
  * and nobody's first impression of it, and printing both at full weight was costing the
@@ -18,7 +18,10 @@
  * and never opacity — the scores are already computed before the button exists, so what is
  * being sequenced is when an answer becomes readable, and text held at zero opacity is
  * text a reader can still select and a screen reader still announces while the audience
- * cannot see it.
+ * cannot see it. The third is that the reveal moves the page: on a phone the closing line
+ * sat eleven hundred pixels below the last thing the reader had been shown, so the two
+ * beats that carry the argument — the first verdict and the consequence — bring themselves
+ * into the band between the two sticky bars. A beat played below the fold has not played.
  */
 
 import texts from '../data/pinned/texts.json';
@@ -113,21 +116,49 @@ function prefersReducedMotion(): boolean {
 }
 
 /**
- * Two sticky bars stand above the document and the target is a panel rather than an act,
- * so it carries no `scroll-margin-top` of its own. Both bars measure themselves into
- * custom properties at mount; reading those is what keeps the landing position right when
- * a bar changes height rather than a constant that was true once.
+ * Where the readable band begins.
+ *
+ * Two sticky bars stand above the document and the targets here are panels rather than
+ * acts, so they carry no `scroll-margin-top` of their own. Both bars measure themselves
+ * into custom properties at mount; reading those is what keeps every landing position
+ * right when a bar changes height, rather than a constant that was true once.
  */
-function scrollToProof(target: HTMLElement): void {
+function stickyTop(): number {
   const styles = window.getComputedStyle(document.documentElement);
   const bar = (name: string): number =>
     Number.parseFloat(styles.getPropertyValue(name)) || 0;
-  const top = target.getBoundingClientRect().top + window.scrollY
-    - (bar('--cl-topbar-h') + bar('--chapters-h') + 14);
+  return bar('--cl-topbar-h') + bar('--chapters-h');
+}
+
+function scrollToProof(target: HTMLElement): void {
+  const top = target.getBoundingClientRect().top + window.scrollY - (stickyTop() + 14);
   window.scrollTo({
     top: Math.max(0, top),
     behavior: prefersReducedMotion() ? 'auto' : 'smooth',
   });
+}
+
+/**
+ * Bring the bottom of an element into the readable band, and no further.
+ *
+ * A reveal that lands its answer below the fold has not revealed anything: on a phone the
+ * closing line sat over a thousand pixels under the last thing the reader was shown, and on
+ * a laptop in presentation shape the first verdict never made it onto the screen at all.
+ * So the page follows the beat down — only downward, so a reader who has scrolled ahead is
+ * never dragged back, and only as far as this element's own bottom needs.
+ *
+ * The second clamp is the one worth naming: an element taller than the band would otherwise
+ * be scrolled until the part that names it — a card's headline, a verdict's word — was off
+ * the top, which trades one invisible half for another. Stopping at the element's own top
+ * keeps the beginning of the answer on screen and lets the tail of it wait.
+ */
+function scrollIntoBand(target: HTMLElement, behavior: ScrollBehavior): void {
+  const rect = target.getBoundingClientRect();
+  const below = rect.bottom - window.innerHeight;
+  const headroom = rect.top - stickyTop();
+  const move = Math.max(0, Math.min(below, headroom));
+  if (move < 1) return;
+  window.scrollTo({ top: window.scrollY + move, behavior });
 }
 
 interface Scenario {
@@ -178,7 +209,7 @@ export function renderHeroExperiment(root: HTMLElement): void {
   clear(root);
   root.append(...actHeader(
     'hero-experiment',
-    'The experiment',
+    'The proof',
     'Same text, different key',
     'One watermarked passage, three runs of one detector. The first two runs are given ' +
     'byte-identical input and differ only in the key. Watch what happens to the evidence.',
@@ -189,6 +220,8 @@ export function renderHeroExperiment(root: HTMLElement): void {
 
   const runs = el('div', { class: 'grid grid-3 result-grid' });
   const cardStages: Stage[] = [];
+  const cardPanels: HTMLElement[] = [];
+  const figures: HTMLElement[] = [];
   for (const scenario of scenarios()) {
     const result = scoreTokens(
       scenario.tokenIds, withKeys(watermarkParams, scenario.keys), defaultConstruction, GPT2_EOS);
@@ -200,9 +233,22 @@ export function renderHeroExperiment(root: HTMLElement): void {
       change: scenario.change,
     });
     cardStages.push(stageIn(card.body, scenario.waiting));
-    runs.append(el('div', { class: 'panel' }, [card.node]));
+    figures.push(card.figure);
+    const host = el('div', { class: 'panel' }, [card.node]);
+    cardPanels.push(host);
+    runs.append(host);
   }
   root.append(runs);
+
+  // The largest number on the page is a term of art, and the short route never reaches the
+  // act that defines it: "mean g-score" is printed six times before Act II, which is where
+  // the definition lives and which the demo depth hides. One sentence, untagged so both
+  // depths carry it — a second definition an auditor scrolls past costs nothing, and a
+  // figure nobody can read costs the whole demonstration.
+  root.append(el('p', { class: 'note' }, [
+    'A g-score is the detector’s average over the text. Unmarked text averages 0.500; the ' +
+    'marked pattern pushes it up.',
+  ]));
 
   // The replay changes what three cards say without moving focus, so the beats are
   // narrated for a reader who is not watching them arrive.
@@ -211,7 +257,8 @@ export function renderHeroExperiment(root: HTMLElement): void {
   narration.setAttribute('aria-live', 'polite');
   root.append(narration);
 
-  root.append(consequence('Changed only the secret', 'the watermark verdict disappeared.'));
+  const closing = consequence('Changed only the secret', 'the watermark verdict disappeared.');
+  root.append(closing);
 
   root.append(labOnly(renderKeySweep()));
   root.append(labOnly(renderOneBit()));
@@ -222,7 +269,39 @@ export function renderHeroExperiment(root: HTMLElement): void {
     'the choice the key was making.',
   ])));
 
-  wireCta(makeReplay(inputs, cardStages, narration));
+  wireCta(makeReplay(inputs, cardStages, narration, {
+    firstPanel: cardPanels[0],
+    firstFigure: figures[0],
+    closing,
+  }));
+}
+
+/**
+ * The three places a beat has to be able to leave the page.
+ *
+ * Held as elements rather than looked up when a timer fires: the section is rebuilt by the
+ * global reset while a replay may still be part-way through it, and a selector evaluated at
+ * that moment would find the new document's card and scroll to a beat nobody started.
+ */
+interface ReplayTargets {
+  readonly firstPanel: HTMLElement;
+  readonly firstFigure: HTMLElement;
+  readonly closing: HTMLElement;
+}
+
+/**
+ * Put the first verdict on screen, if it is not already.
+ *
+ * This is the beat that has to land, and on a short viewport the inputs panel above it
+ * fills the readable band on its own — at 844×390 the verdict and its figure were both
+ * zero pixels visible when the reveal reached them. Whether that is happening is measured
+ * rather than predicted from the two heights: the difference between the prediction and
+ * the truth is the card's own chrome — its title, its scope line, the grid gap — which is
+ * exactly the amount that decides it at the narrow end.
+ */
+function landFirstCard(targets: ReplayTargets, behavior: ScrollBehavior): void {
+  if (targets.firstFigure.getBoundingClientRect().bottom <= window.innerHeight) return;
+  scrollIntoBand(targets.firstPanel, behavior);
 }
 
 /**
@@ -238,6 +317,7 @@ function makeReplay(
   inputs: { node: HTMLElement; stage: Stage },
   cards: Stage[],
   narration: HTMLElement,
+  targets: ReplayTargets,
 ): () => void {
   const stages = [inputs.stage, ...cards];
   const revealAll = (): void => {
@@ -251,6 +331,10 @@ function makeReplay(
     if (prefersReducedMotion()) {
       revealAll();
       narration.textContent = 'The three results are shown in full.';
+      // The same choice the staged reveal makes at its first card, made once and without
+      // an animation: the request was for the answer, not for a faster performance of it,
+      // and an answer off the bottom of the screen is not one.
+      landFirstCard(targets, 'auto');
       return;
     }
 
@@ -264,6 +348,7 @@ function makeReplay(
       () => {
         showStage(cards[0], true);
         narration.textContent = 'Run 1, under the configured key: evidence.';
+        landFirstCard(targets, 'smooth');
       },
       () => {
         showStage(cards[1], false, 'Same bytes. Changing only the key…');
@@ -276,6 +361,10 @@ function makeReplay(
       () => {
         showStage(cards[2], true);
         narration.textContent = 'Run 3, unwatermarked control: no evidence.';
+        // The line the whole sequence exists to earn. It is the last thing appended and
+        // therefore the first thing to fall off the bottom of a short viewport, so the
+        // closing beat carries the page to it instead of leaving the reader to find it.
+        scrollIntoBand(targets.closing, 'smooth');
       },
     ];
     beats.forEach((beat, index) => {
@@ -327,9 +416,12 @@ function renderInputs(): { node: HTMLElement; stage: Stage } {
 
   let shared = '';
   let revert = 0;
+  let unhashable = false;
   const copy = button('Copy the shared digest', () => {
     if (!shared) {
-      status.textContent = 'The digests are still being computed.';
+      status.textContent = unhashable
+        ? 'The digests could not be computed in this browser, so there is nothing to copy.'
+        : 'The digests are still being computed.';
       return;
     }
     const clipboard = navigator.clipboard;
@@ -356,11 +448,13 @@ function renderInputs(): { node: HTMLElement; stage: Stage } {
   });
   copy.classList.add('identity-copy');
 
+  const claimLine = el('p', { class: 'identity-claim' }, [
+    el('b', { text: 'Runs 1 and 2: same SHA-256.' }),
+    ' Run 3 is a different text, and its digest says so.',
+  ]);
+
   const claim = el('div', { class: 'identity' }, [
-    el('p', { class: 'identity-claim' }, [
-      el('b', { text: 'Runs 1 and 2: same SHA-256.' }),
-      ' Run 3 is a different text, and its digest says so.',
-    ]),
+    claimLine,
     el('div', { class: 'controls' }, [copy]),
     detail,
     status,
@@ -385,16 +479,36 @@ function renderInputs(): { node: HTMLElement; stage: Stage } {
         el('dt', { text: 'Runs 1 and 2 identical' }),
         el('dd', { text: 'yes — same bytes, different key' }),
       ]));
-    } catch (error) {
+    } catch {
       // `crypto.subtle` does not exist outside a secure context. The claim above is only
-      // worth making if it can be checked, so say plainly that it cannot be here.
+      // worth making if it can be checked, so say plainly that it cannot be here — and say
+      // it where it will be read. A notice folded inside a closed disclosure, under a
+      // sentence still asserting a hash nobody computed, is the page telling a projector
+      // audience something it does not know. So the disclosure opens itself, the claim
+      // steps back to what the pinned inputs alone support, and the copy affordance stops
+      // offering a value that will never arrive.
+      //
+      // The cause is named rather than the browser's own message repeated: "Cannot read
+      // properties of undefined (reading 'digest')" names a property, not the plain-http
+      // projector that produced it, which is the one thing a presenter can act on.
+      unhashable = true;
       clear(digests);
       digests.append(verdict(
         'alarm',
         'The digests could not be computed',
-        `${error instanceof Error ? error.message : String(error)} This browser gave the `
-        + 'page no SHA-256, so the identity of the two inputs cannot be checked here.',
+        'This browser gave the page no SHA-256. crypto.subtle exists only in a secure '
+        + 'context, so a lab served over plain http:// from anything other than localhost '
+        + 'cannot hash the two inputs here. The same files over https:// restore this '
+        + 'check. The token ids the three runs were scored from are unaffected.',
       ));
+      detail.setAttribute('open', '');
+      clear(claimLine);
+      claimLine.append(
+        el('b', { text: 'Runs 1 and 2 are the same bytes' }),
+        ' — this browser cannot hash them to show it. Run 3 is a different text.',
+      );
+      copy.disabled = true;
+      copy.title = 'There is no digest to copy: this browser gave the page no SHA-256.';
     }
   })();
 
@@ -410,7 +524,13 @@ function renderInputs(): { node: HTMLElement; stage: Stage } {
 function renderKeySweep(): HTMLElement {
   const output = liveRegion('Wrong-key distribution results');
   const chartHost = el('div');
-  const progress = el('p', { class: 'progress', role: 'status', 'aria-live': 'polite' });
+  // Visible, and deliberately not a live region. The per-chunk line exists so a sighted
+  // reader can see the page working rather than frozen. A polite region queues rather than
+  // replaces, so announcing every tenth key is up to thirty-one sentences read out over a
+  // quarter-second of work, with the answer spoken last of all. What the sweep has to say
+  // aloud is what it is doing and what it found, and both belong in the region that
+  // carries the result.
+  const progress = el('p', { class: 'progress' });
 
   const { field, input, output: sizeOutput } = labelledRange(
     'wrong-key-count', 'Random wrong keys to try', 20, 300, 100);
@@ -424,6 +544,10 @@ function renderKeySweep(): HTMLElement {
     // count that was actually scored — is the record of the run and has to survive it.
     progress.textContent = 'Scoring the same bytes under random wrong keys…';
     const count = Number(input.value);
+    // What the region says while it is working. The guard holds `aria-busy` on it for the
+    // duration, so this is what a reader who inspects the region mid-run is told, and it
+    // is folded into the one announcement the region makes when the busy flag clears.
+    output.append(srOnly(`Scoring ${integer(count)} wrong keys…`));
     const keySets = drawKeySets(20260819, count, watermarkParams.keys.length,
       watermarkParams.keys);
     const tokenIds = texts.samples.watermarked.token_ids;
@@ -443,11 +567,14 @@ function renderKeySweep(): HTMLElement {
       await nextFrame();
     }
 
+    // The mean is named before the spread rather than recomputed inside it: the same sum
+    // over every score, once per score, is quadratic work for a number that is already on
+    // the line above.
+    const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
     const nullDist: NullDistribution = {
       scores,
-      mean: scores.reduce((a, b) => a + b, 0) / scores.length,
-      sd: Math.sqrt(scores.reduce((a, s, _i, arr) =>
-        a + (s - arr.reduce((x, y) => x + y, 0) / arr.length) ** 2, 0) / (scores.length - 1)),
+      mean,
+      sd: Math.sqrt(scores.reduce((a, s) => a + (s - mean) ** 2, 0) / (scores.length - 1)),
       min: Math.min(...scores),
       max: Math.max(...scores),
       scoredPositions,
@@ -457,6 +584,12 @@ function renderKeySweep(): HTMLElement {
     const tail = empiricalTail(observed.score as number, nullDist);
 
     progress.textContent = `Scored ${scores.length} of ${keySets.length} wrong keys. Done.`;
+    // The opening line is replaced rather than added to, so what is finally announced is
+    // the count and the statistics together, and not an answer queued behind a sentence
+    // that has stopped being true.
+    clear(output);
+    output.append(srOnly(`Scored ${integer(scores.length)} of ${integer(keySets.length)} `
+      + 'wrong keys.'));
     output.append(readout([
       ['Correct-key score', fixed(observed.score)],
       ['Wrong keys tried', integer(scores.length)],
@@ -532,9 +665,10 @@ function renderKeySweep(): HTMLElement {
  */
 function renderOneBit(): HTMLElement {
   const tokenIds = texts.samples.watermarked.token_ids;
+  const flippedKeys = oneBitKeys();
   const correct = scoreTokens(tokenIds, watermarkParams, defaultConstruction, GPT2_EOS);
   const flipped = scoreTokens(
-    tokenIds, withKeys(watermarkParams, oneBitKeys()), defaultConstruction, GPT2_EOS);
+    tokenIds, withKeys(watermarkParams, flippedKeys), defaultConstruction, GPT2_EOS);
 
   return panel('One bit of one key', [
     el('p', { class: 'note' }, [
@@ -544,7 +678,7 @@ function renderOneBit(): HTMLElement {
     ]),
     readout([
       ['Configured keys, first entry', String(watermarkParams.keys[0])],
-      ['Flipped keys, first entry', String(oneBitKeys()[0])],
+      ['Flipped keys, first entry', String(flippedKeys[0])],
       ['Remaining keys', 'unchanged'],
       ['Score, configured keys', fixed(correct.score)],
       ['Score, one bit flipped', fixed(flipped.score)],

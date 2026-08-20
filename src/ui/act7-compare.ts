@@ -33,6 +33,7 @@ import { generateSignerKeyPair, signManifest } from '../c2pa/sign.ts';
 import { validateManifest } from '../c2pa/validate.ts';
 import { defaultConstruction, tokenizer, watermarkParams } from '../lab-config.ts';
 import { scoreTokens } from '../watermark/score.ts';
+import { requireWebCrypto } from './act5-sign.ts';
 import { resetButton, runGuarded } from './busy.ts';
 import {
   actHeader, clear, consequence, disclosure, el, fixed, integer, liveRegion, panel,
@@ -214,9 +215,11 @@ export function renderAct7(root: HTMLElement): void {
   detachWidthWatch?.();
   detachWidthWatch = null;
 
+  // Numeral and noun phrase together: the numeral is what the anchor, the README and the
+  // verifier call this beat, and the noun phrase is the chapter chip standing above it.
   root.append(...actHeader(
     'act-7',
-    'Act VII',
+    'Act VII · What each proves',
     'What each mechanism actually proves',
     'One structural difference explains every row of the comparison that follows.',
   ));
@@ -348,8 +351,13 @@ function renderCompactComparison(): HTMLElement {
       'signature" from a taxonomy into a consequence.',
     ]),
     el('div', { class: 'grid compare-cards' }, compactRows().map(compactCard)),
+    // Restated at the precision of the row it closes, which the shorter version dropped:
+    // "only the issuer" is what holding the configuration means IN PRODUCTION, and this
+    // page has just spent eighty seconds letting a visitor who is nobody's issuer check a
+    // watermark — because the configuration is published here. The line the audience
+    // repeats afterwards must be the one their own first beat did not falsify.
     consequence('Asked who can verify',
-      'only the issuer can check a watermark; anyone can check a signature.'),
+      'a watermark needs the secret configuration; a signature needs only the public key.'),
   ], provenanceTag('paper', 'the same rows as the full table, sourced in the references'));
 }
 
@@ -360,6 +368,13 @@ function renderCompactComparison(): HTMLElement {
 interface FocusState {
   focus: Focus;
   narrow: boolean;
+  /**
+   * The ids whose explanation is open. Held here rather than in the DOM because the DOM is
+   * thrown away: choosing a mechanism column rebuilds the table, and these are the two
+   * controls a presenter uses together in the payoff beat — a reader who opened three rows
+   * to talk through them has not asked for them to shut again underneath the next click.
+   */
+  readonly open: Set<string>;
 }
 
 const FOCUS_OPTIONS: readonly { readonly focus: Focus; readonly label: string }[] = [
@@ -431,9 +446,10 @@ function comparisonRow(
   row: ComparisonRow,
   columns: readonly MechanismColumn[],
   focusClass: (key: Mechanism) => string,
+  opened: Set<string>,
 ): HTMLElement[] {
   const detailId = `compare-detail-${row.id}`;
-  const chevron = el('span', { class: 'compare-chevron', 'aria-hidden': 'true', text: '▸' });
+  const chevron = el('span', { class: 'compare-chevron', 'aria-hidden': 'true' });
   const toggle = el('button', { type: 'button', class: 'compare-why' }, [
     el('span', { class: 'compare-question', text: row.question }),
     chevron,
@@ -441,7 +457,6 @@ function comparisonRow(
   // The visible label is the question, so the question is the trigger; the accessible name
   // adds what expanding it does, which a reader who cannot see the chevron has no other
   // way to learn. WCAG 2.5.3 is satisfied because the visible string is contained in it.
-  toggle.setAttribute('aria-expanded', 'false');
   toggle.setAttribute('aria-controls', detailId);
   toggle.setAttribute('aria-label', `Why: ${row.question}`);
 
@@ -450,13 +465,22 @@ function comparisonRow(
       el('p', { class: 'note', text: row.detail }),
     ]),
   ]);
-  detailRow.hidden = true;
+
+  // The row is built into whichever state it was left in, so a rebuild is invisible to a
+  // reader who has one open. Three places say the same thing, because three audiences read
+  // it: the attribute for a screen reader, the hidden row for everyone, the chevron.
+  const paint = (): void => {
+    const open = opened.has(row.id);
+    toggle.setAttribute('aria-expanded', String(open));
+    detailRow.hidden = !open;
+    chevron.textContent = open ? '▾' : '▸';
+  };
+  paint();
 
   toggle.addEventListener('click', () => {
-    const open = toggle.getAttribute('aria-expanded') === 'true';
-    toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
-    detailRow.hidden = open;
-    chevron.textContent = open ? '▸' : '▾';
+    if (opened.has(row.id)) opened.delete(row.id);
+    else opened.add(row.id);
+    paint();
   });
 
   const tr = el('tr', row.loadBearing ? { class: 'load-bearing' } : {});
@@ -476,6 +500,7 @@ function renderComparison(): HTMLElement {
   const state: FocusState = {
     focus: media.matches ? 'watermark' : 'all',
     narrow: media.matches,
+    open: new Set<string>(),
   };
   const table = el('table', { class: 'compare-table' });
 
@@ -503,7 +528,9 @@ function renderComparison(): HTMLElement {
     table.append(el('thead', {}, [head]));
 
     const body = el('tbody');
-    for (const row of ROWS) body.append(...comparisonRow(row, columns, focusClass));
+    for (const row of ROWS) {
+      body.append(...comparisonRow(row, columns, focusClass, state.open));
+    }
     table.append(body);
   };
 
@@ -547,6 +574,10 @@ function renderStripVsRegenerate(): HTMLElement {
   const regenProgress = el('p', { class: 'progress', role: 'status', 'aria-live': 'polite' });
 
   const runStrip = async (): Promise<void> => {
+    // The same written cause Acts V and VI give. Without it this region answers a lab
+    // opened over plain http:// with "Cannot read properties of undefined (reading
+    // 'generateKey')" — a V8 internal string, in the one place a reader needs plain words.
+    requireWebCrypto();
     clear(strip);
     const asset = encodeUtf8(texts.samples.watermarked.text);
     const keys = await generateSignerKeyPair();
@@ -636,13 +667,20 @@ function renderStripVsRegenerate(): HTMLElement {
   async function runBoth(): Promise<void> {
     await Promise.all([
       runGuarded(runStrip, {
+        // One control, one owner. The guard snapshots each control's state on entry and
+        // restores it on exit, so two concurrent runs over the same button record two
+        // snapshots — `[false]` for whichever entered first, `[true]` for the other — and
+        // whichever finishes LAST decides. Today the scoring half is synchronous and the
+        // order happens to end enabled; the day it gains an await, "Reset and re-run both"
+        // would be left switched off with no way back but a global reset. So the signing
+        // half owns the button for the whole run and the scoring half claims nothing.
         controls: [rerun],
         region: strip,
         progress: stripProgress,
         busyText: 'Signing, then removing the manifest…',
       }),
       runGuarded(runRegen, {
-        controls: [rerun],
+        controls: [],
         region: regen,
         progress: regenProgress,
         busyText: 'Scoring the rewrite…',
@@ -754,7 +792,12 @@ function renderBranchPanel(): HTMLElement {
     el('ul', { class: 'branch-list', role: 'list' }, items),
   ]);
   node.id = 'branch-depth';
-  node.classList.add('branch-panel');
+  // No `.branch-panel` class any more. It existed for one rule — the
+  // `scroll-margin-top` that cleared the two sticky bars — and that clearance
+  // now lives once on the scrollport as `:root { scroll-padding-top }`, which
+  // reaches every jump target without being told about any of them. Leaving
+  // the class behind would leave a hook the stylesheet never mentions, and the
+  // next reader would have to grep the sheet to find that out.
   return node;
 }
 
@@ -762,8 +805,15 @@ function renderBranchPanel(): HTMLElement {
  * The short route's own scope note.
  *
  * Demo mode hides the reference section, and a shorter page must not become a page that
- * reads as though the caveats were dropped along with the detail. Three lines, and a way
- * to the full list in one action.
+ * reads as though the caveats were dropped along with the detail. Four lines, and a way to
+ * the full list in one action.
+ *
+ * Two of those lines exist because the short route makes claims whose qualifications only
+ * the lab was carrying. It tells a visitor that a watermark can only be checked by a holder
+ * of the configuration — while they have just checked one, which is possible solely because
+ * this repository publishes its configuration. And it shows a single wrong key as the whole
+ * key argument, where the lab scores three hundred. Neither is a new claim; both are facts
+ * the app already computes, said where the shorter reading needs them.
  */
 function renderDemoScope(): HTMLElement {
   return panel('What this demo does not claim', [
@@ -773,7 +823,13 @@ function renderDemoScope(): HTMLElement {
     ]),
     el('p', { class: 'note' }, [
       'The manifest on this page is C2PA-shaped rather than conformant, and the detector ' +
-      'is this lab’s implementation of the published algorithm rather than any vendor’s.',
+      'is this lab’s implementation of a published algorithm — the mean g-score, not the ' +
+      'learned detector the paper’s headline results use, and not any vendor’s.',
+    ]),
+    el('p', { class: 'note' }, [
+      'The watermark configuration is published in this repository, which is the only ' +
+      'reason you can check this mark here; in production it is the issuer’s secret. And ' +
+      'this route shows one wrong key — the full lab scores the same bytes under up to 300.',
     ]),
     el('p', { class: 'note' }, [
       'The complete list of limitations, the divergences from both reference ' +

@@ -32,6 +32,13 @@
      and both measure themselves into these properties at mount, so this is one
      definition rather than a constant repeated at each deep-link target. */
   --sticky-offset: calc(var(--cl-topbar-h, 4rem) + var(--chapters-h, 3rem) + 0.9rem);
+  /* The clearance belongs to the SCROLLPORT, not to each thing scrolled to. Stated here it
+     reaches everything the browser brings into view — a deep link, a chapter jump, a
+     scroller a keyboard tabs into, and the focus ring dragged back up the page by
+     Shift+Tab. That last one is the case no per-target `scroll-margin-top` could ever have
+     covered: a button is not a jump target, and several of them parked with their whole box
+     behind the bars. WCAG 2.2 SC 2.4.11 Focus Not Obscured (Minimum, AA) is what that is. */
+  scroll-padding-top: var(--sticky-offset);
   color-scheme: dark;
 }
 
@@ -90,7 +97,19 @@ body {
 #app a:hover { text-decoration-thickness: 2px; }
 #app :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.cl-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:clamp(1rem,4vw,3rem);flex-wrap:wrap;margin:clamp(1rem,3vw,2rem) 0 1.5rem;}
+/* The two gap axes here do different jobs and cannot share a value. `4vw` is a column
+   gutter: it separates the description from the why-it-matters aside, and it is right. As
+   a ROW gap it separated the title block from the presenter bar that acts on it, and at
+   1440 that made the largest single band in the first viewport — 48px of clamped gutter
+   plus the bar's own 14px margin — while the band between the presenter bar and the thesis
+   below it was 24px. The mode switch then read as belonging to the thesis rather than to
+   the title block it switches. Split, the row gap is one fixed number just under the 24px
+   below the bar, so the pair reads as one group, and the horizontal separation is
+   unchanged. It is a gap rather than a margin on `.lab-bar` because the hero's flex line
+   breaks between about 641 and 690px — the basis widths do not fit before the min widths
+   do — and there the row gap is the only thing standing between the description and the
+   aside. Zero there put them in contact. */
+.cl-hero{display:flex;align-items:flex-start;justify-content:space-between;column-gap:clamp(1rem,4vw,3rem);row-gap:1.4rem;flex-wrap:wrap;margin:clamp(1rem,3vw,2rem) 0 1.5rem;}
 .cl-hero-main{flex:1 1 22rem;min-width:min(100%,20rem);}
 .cl-hero-title{margin:0;font-size:clamp(1.6rem,3.8vw,2.7rem);font-weight:700;line-height:1.1;letter-spacing:.01em;}
 .cl-hero-sub{margin:.4rem 0 0;font-size:clamp(.9rem,1.6vw,1.05rem);letter-spacing:.01em;color:var(--text-dim);}
@@ -177,8 +196,23 @@ body {
   margin: 0 0 0.5rem;
 }
 .panel > *:last-child { margin-bottom: 0; }
+/* A measure is a reading contract, not decoration. The ledes on this page already hold
+   themselves to 78ch and `.act-headline-detail` to 72ch, and the panel prose beside them
+   ran to 182 characters a line at 1440 — about 2.4x the comfortable maximum, and about
+   2.2x what the page asks of itself forty pixels higher in the same column. On a projector
+   the return sweep loses the line. Nothing is cut; the line just stops where the eye can
+   still find the next one. */
+#app .panel > p:not([class]) { max-width: 78ch; }
 
 .grid { display: grid; gap: 1rem; }
+/* `gap` owns the gutter between grid children, and a margin on top of it double-counts:
+   grid margins do not collapse, so three panels stacked in a one-column grid separated
+   themselves by gap + margin + margin — 48px against the 16px the same grid uses when the
+   same three cards are side by side. On a phone that turned the hero's central comparison
+   into three unrelated blocks. `.compare-card` already states this by hand for its own
+   grid; this states it once for every grid. A panel that is a plain block child of an act
+   keeps its margin, because there is no gap there to own the spacing. */
+.grid > .panel { margin: 0; }
 /* `repeat(auto-fit, minmax(15rem, 1fr))` promises a floor it cannot keep: 15rem is
    240px, so auto-fit packed three summary cards into 319px each at a 1052px laptop and
    two into 353px each at 768px, and inside a card that narrow the definition values
@@ -239,12 +273,27 @@ textarea { width: 100%; min-height: 9rem; resize: vertical; font-family: var(--m
 }
 /* `auto` sizes the term column to its max-content, which at a narrow viewport pushes the
    whole document sideways — WCAG 1.4.10 reflow, and the one check axe has no rule for.
-   minmax(0, max-content) lets the column shrink and the text wrap instead. */
-.readout dl { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 0.2rem 0.9rem; margin: 0; }
+   minmax(0, max-content) lets the column shrink and the text wrap instead.
+   A pair also has to stay readable AS a pair, and the second track has no width it will
+   not take: at 1440 the widest of these lists ran a metre of dark ground between
+   `Layers (m)` and its `3`, which on a projector loses the row it is meant to join. The
+   cap ends the run without touching the two tracks, the right-aligned figures or the
+   single-column reflow below 640px, and the result cards are far narrower than it. */
+.readout dl { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 0.2rem 0.9rem; margin: 0; max-width: 46rem; }
 /* The term is a label and the value is a statistic, so they take different faces. The
    readout keeps the mono face for its values; the terms opt back out of it. */
 .readout dt { color: var(--text-dim); overflow-wrap: anywhere; font-family: var(--sans); }
 .readout dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+/* The same exception again, from the other side. A verdict's word and its qualification, a
+   consequence line and a note are explanation rather than statistics — but several of each
+   sit inside a readout, inherit its mono face and so render the SAME component in two faces
+   on one page: the hero's closure line in sans and Act V's in monospace, and a 130-character
+   prose sentence set as if it were a hash. Stated here, the face follows the kind of thing
+   the text is rather than where it happens to sit. `.verdict .glyph` and `.consequence-arrow`
+   stay mono deliberately: those are marks, not prose, and the grayscale and forced-colours
+   stories both rest on them. */
+.verdict .label, .verdict .detail { font-family: var(--sans); }
+.consequence, .note { font-family: var(--sans); }
 
 .verdict { display: flex; align-items: flex-start; gap: 0.55rem; padding: 0.6rem 0.75rem; border-radius: 10px; border: 1px solid var(--border-control); }
 .verdict .glyph { font-family: var(--mono); font-weight: 700; flex: 0 0 auto; }
@@ -266,6 +315,16 @@ textarea { width: 100%; min-height: 9rem; resize: vertical; font-family: var(--m
   background: var(--raised);
   padding: 0.5rem;
 }
+/* The two `<pre>` blocks on this page are evidence a reader is asked to READ, not tables
+   whose columns have to stay columns. Unwrapped, the signed claim bytes are one
+   431-character line — 3,233px of horizontal drag inside a 304px box on a phone, about 8%
+   of it visible — and a scroller draws no fade, no shadow and no arrow, while a mobile
+   overlay scrollbar is invisible until it is touched. So nothing says the content
+   continues. `pre-wrap` keeps every space and the JSON's indentation, which is what makes
+   these bytes quotable at all; `anywhere` gives a 64-character digest a break opportunity.
+   The tables are untouched: they are not `<pre>`, and their columns still need the
+   min-content width that `overflow-wrap` would destroy. */
+.scroller > pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
 th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
 th { color: var(--text-dim); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.03em; }
@@ -273,8 +332,10 @@ td.num, th.num { text-align: right; font-family: var(--mono); }
 tbody tr:last-child td { border-bottom: none; }
 
 /* Prose that can contain a 64-character digest needs a break opportunity: an unbroken
-   hex run has no natural one and sets the paragraph's min-content width. */
-.note { font-size: 0.85rem; color: var(--text-dim); overflow-wrap: anywhere; }
+   hex run has no natural one and sets the paragraph's min-content width. The measure is
+   the same reading contract the bare panel paragraphs above take, and for the same
+   reason — these ran the widest of anything on the page. */
+.note { font-size: 0.85rem; color: var(--text-dim); overflow-wrap: anywhere; max-width: 78ch; }
 .warn-box {
   border: 1px solid var(--warn);
   border-left-width: 5px;
@@ -303,8 +364,17 @@ tbody tr:last-child td { border-bottom: none; }
   max-width: 100%;
   overflow-wrap: anywhere;
 }
-.provenance-tag.paper { border-color: var(--ok); color: var(--ok); }
-.provenance-tag.reference { border-color: var(--accent); color: var(--accent); }
+/* One colour, one meaning. Green on this page means "the detector found evidence" and
+   amber means "read the caveat"; a tag that ALSO painted green for "faithful to the paper"
+   made the highest-chroma element on the two negative result cards a positive-looking pill
+   sitting above a grey `No evidence`, so a viewer sweeping the row at a glance could read
+   all three cards as positive. The two attribution tags therefore take the neutral
+   treatment `.pinned` already ships. No tag is removed and no word is softened — and
+   DEMO-SIMPLIFICATION gets LOUDER by becoming the only coloured tag on the page, which is
+   the right end of the emphasis to keep. A tag draws no control boundary, so 1.4.11 does
+   not reach it; `--text-dim` on both panel grounds clears 4.5:1 for the text. */
+.provenance-tag.paper,
+.provenance-tag.reference { border-color: var(--text-muted); color: var(--text-dim); }
 .provenance-tag.demo { border-color: var(--warn); color: var(--warn); }
 .provenance-tag.pinned { border-color: var(--text-muted); color: var(--text-dim); }
 
@@ -336,6 +406,25 @@ tbody tr:last-child td { border-bottom: none; }
 .chart .series-wm { stroke: var(--ok); fill: none; stroke-width: 2; }
 .chart .band { fill: color-mix(in oklab, var(--text-muted) 25%, transparent); }
 .chart .point { fill: var(--ok); }
+/* An SVG's font-size is in user units, so `width: 100%` scales the type down with the
+   drawing: a 680-unit viewBox rendered 332px wide paints 10px labels at 4.9 real pixels,
+   and at a 320px window at 3.9. The axis is the part that says how many tokens and what
+   mean g-score, so it is not decoration that may shrink away — and the accessibility gate
+   cannot see any of it, because chart.ts marks every SVG aria-hidden and the contrast and
+   axe oracles skip it. Stated in the stylesheet rather than in chart.ts because a rotation
+   has to re-evaluate it and the SVG is not rebuilt when the window changes. */
+@media (max-width: 480px) {
+  .chart text { font-size: 20px; }
+  /* chart.ts reserves 46 user units for the value axis, which fits `0.591` at 10 units and
+     not at 20: the SVG viewport clips a root element's overflow by default, so the enlarged
+     labels lost their leading character and read `.591`. A tick clipped to something that
+     still looks like a number is worse than a small one. Released only at the widths that
+     enlarge the type — above 480 nothing reaches the edge — and the labels land in the
+     panel's own padding rather than over any neighbour or off the side of the page. The
+     real repair is a wider gutter in chart.ts, which this lane does not own. */
+  .chart { overflow: visible; }
+}
+@media (max-width: 380px) { .chart text { font-size: 24px; } }
 
 .bracket { display: grid; gap: 0.35rem; font-family: var(--mono); font-size: 0.78rem; }
 .bracket-layer { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
@@ -416,18 +505,16 @@ code, .mono { font-family: var(--mono); font-size: 0.85em; }
    the page's styling is deliberately left where it already is.
    --------------------------------------------------------------------------- */
 
-/* Two sticky bars now stack at the top of the window — the shared site header and the
-   chapter control. Both measure themselves into `--cl-topbar-h` and `--chapters-h` at
-   mount, so an in-page jump clears whatever they actually are rather than a guessed
-   constant. Every deep-link target carries the same offset; `.branch-panel` is one and
-   is not an act, which is why the offset is a token rather than a rule on `.act`. */
-.act, .branch-panel { scroll-margin-top: var(--sticky-offset); }
-
-/* A scroller is a tab stop, so the browser scrolls it into view when a keyboard reaches
-   it. The tall ones — the provenance table is fourteen hundred pixels — cannot fit, and
-   the browser then aligns their top edge with the top of the window, which is behind the
-   two sticky bars. The same offset the anchors use puts the focus ring back on screen. */
-.scroller { scroll-margin-top: var(--sticky-offset); }
+/* Two sticky bars stack at the top of the window — the shared site header and the chapter
+   control — and both measure themselves into `--cl-topbar-h` and `--chapters-h` at mount,
+   so whatever clears them clears what they actually are rather than a guessed constant.
+   That clearance used to be a `scroll-margin-top` repeated on `.act`, `.branch-panel` and
+   `.scroller`; it now lives once on the scrollport, as `scroll-padding-top` in `:root`.
+   The move matters twice over. Scroll padding and scroll margin ADD where both are stated,
+   so these rules had to go in the same edit or every jump would land 242px low. And the
+   scrollport version covers what the per-target version structurally could not: the three
+   targets those rules named were the only ones that carried an offset, and a control the
+   keyboard scrolls back into view is not one of them. */
 
 .lab-bar {
   flex: 1 0 100%;
@@ -436,9 +523,32 @@ code, .mono { font-family: var(--mono); font-size: 0.85em; }
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem 1rem;
-  margin: 0.9rem 0 0;
+  /* No margin of its own above 640px: the hero's row gap is the whole of the band, and a
+     margin on top of a gap is the same double-count `.grid > .panel` above exists to stop.
+     Below 640px the hero dissolves into the page column and the phone rules restate the
+     spacing there. */
+  margin: 0;
+  /* Two of this bar's three children are empty hosts that script fills, so the row is
+     33px tall — the height of the one static button in it — until the depth switch mounts
+     and takes it to 42. Those nine pixels pushed the thesis, the call to action and the
+     whole of `main` down at about 230ms, and measured as 0.22 of layout shift at 1440 and
+     0.18 at 390: the largest single thing an audience saw the page do, and it happened
+     just as they began reading. Reserving the settled height means the switch appears in
+     a slot that was already its size. As with `.chapters`, the constant is measured and
+     the gate is the SHIFT rather than the number — see e2e/visual.spec.ts. */
+  box-sizing: border-box;
+  min-height: 42px;
 }
-.lab-bar-actions { display: flex; align-items: center; gap: 0.5rem; }
+.lab-bar-actions { display: flex; align-items: center; gap: 0.5rem; min-height: 35px; }
+
+/* The acts are empty sections until script fills them, so at first paint the footer sits
+   inside the first screen and is then pushed off it as the page builds — 0.07 of layout
+   shift attributable to one element that is not even part of the lab. Reserving a screen
+   for the content that is always coming keeps the footer below the fold from the start,
+   where a shift costs a reader nothing because it is not on screen to be seen. It has no
+   effect on the settled page: `main` is thousands of pixels tall by the time anyone has
+   read the first card. */
+main { min-height: 100vh; }
 
 /* Act VII's mechanism switcher is the same control at a different scale, so it is the
    same rules rather than a second set that would drift. Both are groups of buttons whose
@@ -521,6 +631,21 @@ code, .mono { font-family: var(--mono); font-size: 0.85em; }
   position: sticky;
   top: var(--cl-topbar-h, 4rem);
   z-index: 900;
+  /* The control is built from script, so its host is an empty 12px box at first paint and
+     a 43px bar a fifth of a second later — and everything below it, which is the thesis
+     and the one action in the first viewport, was shoved down at exactly the moment a
+     reader had started reading it. Measured as layout shift that was 0.23 at 1440 and
+     0.18 at 390, against a 0.1 bar for "good", and it was the first thing an audience saw.
+     Reserving the height is the fix a JS-mounted bar always needs: the slot exists before
+     the thing that fills it, so filling it moves nothing. 43px is the filled height at
+     every viewport this lab supports — one row of chapter links, or the compact chooser
+     and its two step buttons — and it is `border-box` so the number is the whole bar
+     rather than the bar plus its padding. It is a measured constant and would rot in
+     silence, so e2e/visual.spec.ts gates cumulative layout shift rather than this number:
+     change the chips' padding or type size and the shift comes back, and the shift is
+     what actually matters. */
+  box-sizing: border-box;
+  min-height: 43px;
   /* Opaque: a translucent bar floating over changing content is measured against its own
      DOM ancestors, not against whatever happens to be scrolling beneath it. */
   background: var(--panel);
@@ -620,10 +745,32 @@ code, .mono { font-family: var(--mono); font-size: 0.85em; }
   .lab-bar { justify-content: flex-start; }
 }
 @media (pointer: coarse) {
+  /* 44px is a target this page had already chosen; the list it was applied to reached the
+     presenter's chrome and missed everything a reader actually presses — every act's
+     primary action at 41px, every `Show calculation` at 20, the depth links at 18 and both
+     sliders at 16. */
+  button, select, summary, input[type="range"], #app .branch-link,
   .mode-switch-option, .mechanism-switch-option, .chapters-step, .chapters-select,
   .reset-control, .identity-copy, .share-control button {
     min-height: 44px;
   }
+  /* A `summary` spends its extra height as padding rather than as a taller line box — and
+     as PADDING rather than as `display: flex`, which would take the element out of
+     `list-item` and silently delete the UA's disclosure triangle. That triangle is the only
+     thing marking a summary as a control here, and the note above `.disclosure > summary`
+     explains why the page will not draw its own. `box-sizing` so the floor and the padding
+     do not add up to 66px. */
+  summary { box-sizing: border-box; padding-block: 0.68rem; }
+  /* A depth link is a destination in a list, not a link inside a sentence, so the inline
+     exception does not cover it. `inline-flex` keeps it the width of its own text — a
+     full-width block would read as a button — while giving it a box tall enough to hit. */
+  #app .branch-link { display: inline-flex; align-items: center; }
+  /* A range input is a replaced control: `min-height` does not grow one, so it takes a
+     height outright. `accent-color` and the transparent ground are untouched. */
+  input[type="range"] { height: 44px; }
+  /* The icon-only controls. The rule above gives them a height and never a width, which is
+     why both were 33px across and neither was a target at all. */
+  .reset-global, .chapters-step { min-width: 44px; }
 }
 
 /* ---------------------------------------------------------------------------
@@ -678,7 +825,21 @@ code, .mono { font-family: var(--mono); font-size: 0.85em; }
   }
 }
 
-.result-card .panel-title { font-size: 1rem; margin: 0; }
+/* The tag takes its own row rather than sharing the headline's. Sharing it, whether the tag
+   wrapped at all depended on how long that card's headline happened to be, so the
+   byte-identical `PAPER-FAITHFUL · mean g-score` badge sat 27px lower and 117px further
+   left on `Wrong key, same bytes` than on its two neighbours — one broken line at exactly
+   the point where the eye enters an otherwise perfectly aligned row. Deterministically two
+   rows in all three cards at every width removes the branch; the subgrid above already
+   reserves a title row for whatever that costs, so nothing below it moves. The order the
+   card builds — headline first, tag second — is what puts them in that order here. */
+.result-card .panel-title {
+  display: grid;
+  justify-items: start;
+  gap: 0.25rem;
+  font-size: 1rem;
+  margin: 0;
+}
 .result-scope { font-size: 0.8rem; color: var(--text-dim); }
 
 /* The verdict is the heaviest thing in the card: it is the answer, and the
@@ -840,6 +1001,30 @@ figcaption { margin-top: 0.4rem; max-width: 78ch; }
 }
 .compare-card { margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .compare-card > * { margin: 0; }
+/* The same contract the three summary cards get, for the same reason and behind the same
+   two guards. This is the row the short route is built to land, and it is meant to be read
+   ACROSS: the card whose question wrapped to two lines started its answers 23px below its
+   neighbours', and which card that was changed with the viewport, so neither the tops nor
+   the bottoms lined up at either width. `subgrid` gives question and answers a shared row
+   each. Scoped to the width where the cards are actually a row — stacked one-up there is no
+   row to share — and guarded by `@supports` because a browser without subgrid would drop
+   only that declaration and keep `display: grid` and the span, which is worse than the flex
+   column it replaces. The lead card spans all three columns, so it shares its rows with
+   nobody and simply needs one row per child; it has three, because it alone carries the
+   disclosure. The card's own `gap` stays the row gap: a subgrid uses its own gutters in the
+   subgridded axis, which is how `.result-card` already keeps its 0.55rem inside a 1rem
+   grid. */
+@media (min-width: 900px) {
+  @supports (grid-template-rows: subgrid) {
+    .compare-cards { grid-auto-rows: min-content; }
+    .compare-cards > .compare-card {
+      display: grid;
+      grid-template-rows: subgrid;
+      grid-row: span 2;
+    }
+    .compare-cards > .compare-card-lead { grid-row: span 3; }
+  }
+}
 .compare-card-question { font-size: 0.95rem; }
 .compare-card-lead {
   border-color: var(--accent);

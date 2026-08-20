@@ -304,6 +304,12 @@ test('the pinned paraphrase result is reported as measured, not as expected',
   async ({ page }) => {
     await page.goto(LAB);
     const row = page.locator('#act-4 table tbody tr', { hasText: 'Paraphrase' }).first();
+    // `allTextContents` does not wait for anything, and the acts no longer all render
+    // inside the load event: without this the read returns an empty list and every number
+    // below it is NaN, which `toBeCloseTo` reports as NaN against NaN rather than as the
+    // row being absent. Seven is also the column count the indices below assume, so this
+    // fails loudly if a column is ever inserted rather than reading the wrong one.
+    await expect(row.locator('td')).toHaveCount(7);
     const cells = await row.locator('td').allTextContents();
     const before = Number(cells[1]);
     const after = Number(cells[2]);

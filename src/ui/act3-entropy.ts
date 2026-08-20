@@ -28,7 +28,7 @@ import { applyTournamentReweighting, sampleIndex, totalVariationDistance } from 
 import { resetButton, runGuarded } from './busy.ts';
 import {
   actHeader, button, clear, consequence, el, fixed, integer, liveRegion, nextFrame, panel,
-  provenanceTag, readout, scroller,
+  provenanceTag, readout, scroller, srOnly,
 } from './dom.ts';
 
 type PinnedDistribution = typeof distributions.distributions.high_entropy;
@@ -57,7 +57,13 @@ export function renderAct3(root: HTMLElement): void {
   ));
 
   const entries = Object.entries(distributions.distributions) as [string, PinnedDistribution][];
-  const grid = el('div', { class: 'grid grid-2' });
+  // One row of three, because the comparison across the three contexts is the whole act.
+  // Two columns wrapped the third card onto a row of its own and left the cell beside it
+  // empty — 584x583px of bare ground at 1440, which reads as a rendering fault rather
+  // than a layout, and which asks the reader to hold the first two cards in memory while
+  // they look at the third. `.grid-3` is one column below 900px, so the phone still
+  // stacks.
+  const grid = el('div', { class: 'grid grid-3' });
   const measurements = entries.map(([key, dist]) => ({ key, ...measure(key, dist) }));
   for (const measurement of measurements) grid.append(measurement.card);
 
@@ -164,11 +170,23 @@ const GPT2_EOS = 50256;
  */
 function renderCorpusScale(): HTMLElement {
   const output = liveRegion('Corpus-scale entropy analysis');
-  const progress = el('p', { class: 'progress', role: 'status', 'aria-live': 'polite' });
+  // The progress line is for eyes. It repaints once every eight texts so a sighted reader
+  // can see the page is working rather than hung, and that is the whole of its job.
+  const progress = el('p', { class: 'progress' });
+  // It is emphatically NOT a live region. A polite region queues rather than coalesces, so
+  // scoring forty-eight texts in 691ms handed a screen reader eight separate strings to
+  // read out in turn, and the answer the reader had actually asked for arrived at the back
+  // of that queue. The run says once that it has started; the region below says once what
+  // it found, when the guard lifts `aria-busy` from it.
+  const announcer = srOnly('');
+  announcer.setAttribute('role', 'status');
+  announcer.setAttribute('aria-live', 'polite');
 
   const score = async () => {
     clear(output);
     progress.textContent = 'Scoring the watermarked corpus…';
+    announcer.textContent = 'Scoring the watermarked corpus. The results will be announced ' +
+      'when it finishes.';
     const corpus = (nullCorpus as { watermarked_corpus_token_ids?: number[][] })
       .watermarked_corpus_token_ids ?? [];
     const threshold = (nullCorpus.by_length as unknown as
@@ -266,12 +284,13 @@ function renderCorpusScale(): HTMLElement {
   const start = (): Promise<void> => runGuarded(score, {
     controls: [runButton, resetControl],
     region: output,
-    onError: () => { progress.textContent = ''; },
+    onError: () => { progress.textContent = ''; announcer.textContent = ''; },
   });
 
   const reset = () => {
     clear(output);
     progress.textContent = '';
+    announcer.textContent = '';
   };
 
   const runButton = button('Score the watermarked corpus', () => { void start(); }, true);
@@ -284,6 +303,7 @@ function renderCorpusScale(): HTMLElement {
     ]),
     el('div', { class: 'controls' }, [runButton, resetControl]),
     progress,
+    announcer,
     output,
   ], provenanceTag('pinned', '48 watermarked texts'));
 }
@@ -344,6 +364,10 @@ function measure(key: string, dist: PinnedDistribution): Measurement {
 
   const card = panel(`${label} context`, [
     el('p', { class: 'note', text: JSON.stringify(dist.prompt) }),
+    // Three of these cards side by side is 319px each on a 1052px laptop, and the term
+    // column alone wants 218px of that. The pairs stack rather than let every figure wrap
+    // a character at a time; the stylesheet's own stacking rule is keyed to the viewport,
+    // which is not the thing that got narrow here.
     readout([
       ['Full-vocabulary entropy', `${fixed(dist.full_vocabulary_entropy_bits, 3)} bits`],
       ['Sampling-distribution entropy', `${fixed(entropy, 3)} bits`],
@@ -354,7 +378,7 @@ function measure(key: string, dist: PinnedDistribution): Measurement {
       ['Mass kept by top-k', fixed(dist.mass_kept_by_top_k, 4)],
       ['Distribution moved (total variation)',
         fixed(totalVariationDistance(probabilities, reweighted), 4)],
-    ], `${label} distribution`),
+    ], `${label} distribution`, { stackWhenNarrow: true }),
     scroller(`${label}: most likely tokens after keyed selection`, [
       el('table', {}, [
         el('thead', {}, [el('tr', {}, [

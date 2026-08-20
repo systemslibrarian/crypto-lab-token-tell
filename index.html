@@ -39,7 +39,7 @@
     />
     <meta
       property="og:image:alt"
-      content="Three results from one detector over the same passage, each read against the same 1% false-positive threshold: correct key, evidence, mean g-score 0.5975; wrong key on byte-identical input, no evidence, 0.5030; unwatermarked control, no evidence, 0.4970. Runs 1 and 2 share one SHA-256."
+      content="One detector, three runs against the same 1% false-positive threshold: the watermarked passage under the correct key, evidence, mean g-score 0.5975; the byte-identical passage under a wrong key, no evidence, 0.5030; a different, unwatermarked text, no evidence, 0.4970. Runs 1 and 2 share one SHA-256. Evidence about one watermark key — not proof of authorship, and not proof that text is AI-generated."
     />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
@@ -56,7 +56,7 @@
     />
     <meta
       name="twitter:image:alt"
-      content="Three results from one detector over the same passage, each read against the same 1% false-positive threshold: correct key, evidence, mean g-score 0.5975; wrong key on byte-identical input, no evidence, 0.5030; unwatermarked control, no evidence, 0.4970. Runs 1 and 2 share one SHA-256."
+      content="One detector, three runs against the same 1% false-positive threshold: the watermarked passage under the correct key, evidence, mean g-score 0.5975; the byte-identical passage under a wrong key, no evidence, 0.5030; a different, unwatermarked text, no evidence, 0.4970. Runs 1 and 2 share one SHA-256. Evidence about one watermark key — not proof of authorship, and not proof that text is AI-generated."
     />
     <link rel="manifest" href="./manifest.webmanifest" />
     <!--
@@ -92,6 +92,10 @@
   .cl-sub{color:#5e8b80;font-size:.72rem;letter-spacing:.04em}
   .cl-actions{display:flex;align-items:center;gap:.5rem}
   .cl-btn{
+    /* The touch rule below sets a min-height of one touch target. Without a border-box
+       the padding is added to it, so a 44px control renders at 62px and the two sticky
+       bars take a sixth of a phone viewport before a word of the lab is on screen. */
+    box-sizing:border-box;
     display:inline-flex;align-items:center;gap:.4rem;
     padding:.5rem .85rem;border-radius:10px;
     border:1px solid color-mix(in srgb, var(--cl-ink) 70%, transparent);
@@ -198,9 +202,18 @@
               class="reset-control reset-global"
               title="Rebuilds every experiment from scratch, without reloading the page."
               aria-label="Reset every experiment"
+              aria-describedby="reset-all-note"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
             </button>
+            <!-- An icon-only control that throws work away needs to say so somewhere a
+                 tooltip cannot: Chrome shows no title on keyboard focus, and a touch
+                 screen shows none at all. -->
+            <p class="sr-only" id="reset-all-note">
+              Rebuilds every experiment from scratch and drops the settings the address bar
+              is carrying. Nothing is reloaded: the depth, the section on screen and the
+              scroll position stay where they are.
+            </p>
             <p class="sr-only" id="reset-status" role="status" aria-live="polite"></p>
           </div>
         </div>
@@ -232,9 +245,14 @@
         >
           Run the proof
         </button>
+        <!-- This is the button's aria-describedby, so it is the first thing a screen
+             reader says about the page's primary action. It describes the experiment
+             rather than claiming a verb the button does not perform: the three runs are
+             scored while the page loads, and the press replays their reveal. -->
         <p class="cta-note" id="run-the-proof-note">
-          Scores one watermarked passage three times: under the configured key, under a
-          wrong key given byte-identical input, and once on unwatermarked text.
+          One watermarked passage, scored three times on load: under the configured key,
+          under a wrong key given byte-identical input, and once on unwatermarked text.
+          This replays the result.
         </p>
       </div>
 

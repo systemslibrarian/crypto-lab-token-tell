@@ -17,6 +17,7 @@
 import { button, el } from './dom.ts';
 
 const LINK_ID = 'share-link';
+const NOTE_ID = 'share-note';
 const REVERT_MS = 4000;
 
 function currentLink(): string {
@@ -66,27 +67,55 @@ export function renderShareControl(): HTMLElement {
       showFallback();
       return;
     }
+    // A clipboard write is not guaranteed to settle. `writeText` resolves when the write
+    // succeeds and rejects when it is refused, but a browser that will not decide — the
+    // usual cause is a document that does not hold focus, which is exactly the state a
+    // presenter's window is in when they click this from a second screen — leaves the
+    // promise pending for ever, and the control then does nothing at all, with no error
+    // and no fallback. That is the worst of the three outcomes and the only one the page
+    // was not answering. So the wait is bounded: whichever of the write and the deadline
+    // arrives first decides what the reader is told, and `settled` stops the loser from
+    // overwriting the winner's answer a second later.
+    let settled = false;
+    const answer = (act: () => void): void => {
+      if (settled) return;
+      settled = true;
+      act();
+    };
+    const refuse = (reason: string): void => {
+      // Deliberately not console.error: a refused or unanswered clipboard is an expected
+      // outcome, and it is answered on the page rather than in the developer tools.
+      copy.textContent = 'Copy this link';
+      status.textContent = `${reason} The link is selected below, ready to copy.`;
+      showFallback();
+    };
+    window.setTimeout(() => answer(() => refuse('The clipboard did not answer.')), 1500);
     void clipboard.writeText(link).then(
-      () => {
+      () => answer(() => {
         while (fallback.firstChild) fallback.removeChild(fallback.firstChild);
         copy.textContent = 'Link copied';
         status.textContent = 'Link copied.';
         revert('Copy link');
-      },
-      () => {
-        // Deliberately not console.error: a refused clipboard is an expected outcome,
-        // and it is answered on the page rather than in the developer tools.
-        copy.textContent = 'Copy this link';
-        status.textContent = 'The clipboard was refused. The link is selected below, ready '
-          + 'to copy.';
-        showFallback();
-      },
+      }),
+      () => answer(() => refuse('The clipboard was refused.')),
     );
   };
 
   const copy = button('Copy link', onCopy);
   copy.classList.add('share-button');
   copy.title = 'Copies the address of this view, including the depth and the section.';
+  // The same sentence as the tooltip, said where a tooltip cannot reach: Chrome shows no
+  // title on keyboard focus and a touch screen shows none at all, so a `title` alone is a
+  // description for mouse users only. The tooltip stays for them; this is for everyone
+  // else, and it is why the button is worth pressing rather than what it is called.
+  const note = el('p', {
+    class: 'sr-only',
+    id: NOTE_ID,
+    text: 'Copies the address of this view — the depth, and the section on screen — to the '
+      + 'clipboard. If the browser refuses the clipboard, the link appears below this '
+      + 'button, selected and ready to copy by hand.',
+  });
+  copy.setAttribute('aria-describedby', NOTE_ID);
 
-  return el('div', { class: 'share-control' }, [copy, fallback, status]);
+  return el('div', { class: 'share-control' }, [copy, note, fallback, status]);
 }

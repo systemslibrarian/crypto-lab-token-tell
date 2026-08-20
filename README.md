@@ -56,15 +56,22 @@ Stated plainly, because it is what the short route costs: **Demo hides most of t
 Five of the nine sections are hidden, along with three panels inside the hero — the
 wrong-key sweep, the one-bit key mutation and the cross-implementation comparison — and
 Act VII's stripping-versus-regeneration experiment. At a laptop width the short route is
-6,400 px of document against the full lab's 22,050; on a phone, 10,785 against 39,801.
+6,619 px of document against the full lab's 22,717; on a phone, 10,905 against 39,344.
+All four are `document.documentElement.scrollHeight`, read off the production build at
+1052 and 390 CSS pixels wide — exact rather than rounded, because two of them were
+rounded to fifty and printed beside two that were not.
 
 Three ways back to all of it: the **Full lab** segment; `?mode=lab` in the address; or the
 "Choose the depth" panel that closes the short route, whose four questions each open the
 full lab at the act that answers them.
 
-Nothing that qualifies a claim is ever hidden. The C2PA-shaped-not-conformant panel, the
-implementation divergence, the caveats printed on the face of each result card, Act VI's
-signed falsehood and every provenance tag are visible at both depths.
+No qualification is dropped, but two are deferred rather than shown. The
+cross-implementation divergence and the full limitation list live in the reference
+section, which the short route does not paint: measured on the rendered page,
+`transformers` appears 0 times in Demo against 8 in Full lab, and `Bayesian` 0 against 2.
+The short route's scope panel names both and links to them. What is on screen at both
+depths is the C2PA-shaped-not-conformant panel, the caveats printed on the face of each
+result card, Act VI's signed falsehood and every provenance tag.
 
 The depth is remembered in `localStorage` under `token-tell:mode`, and a `?mode=` in the
 address outranks the stored preference, so a link handed to someone else opens at the
@@ -155,11 +162,15 @@ verified (the reference section).
 
 ## Deep Links
 
-Every control that changes what an audience sees writes its state into the address bar
-with `replaceState`, so the address is always a working link to what is on screen and
-never a lie about it. **Copy link** copies exactly that; if the browser refuses the
-clipboard — it is unavailable outside a secure context — the link is rendered as selected
-text to copy by hand rather than failing silently.
+Five things are written into the address with `replaceState`: the depth, the section on
+screen — whether it was reached through the chapter control, through a deep link, or by
+scrolling to it — the sample loaded into the detector, Act I's scenario, and whether Act V
+is tampered or stripped. Four are not: the scroll position within a section, a re-drawn
+tournament bracket, a slider position, and the mechanism column Act VII has in focus. So
+the address is a working link to the beat on screen and to the state of every experiment
+named below, and it does not claim to restore anything else. **Copy link** copies exactly
+that; if the browser refuses the clipboard — it is unavailable outside a secure context —
+the link is rendered as selected text to copy by hand rather than failing silently.
 
 | Parameter | Values | Effect |
 | --- | --- | --- |
@@ -310,7 +321,7 @@ pip install -r tools/requirements-transformers.txt  # capture_sampling_table.py 
 npm test              # 214 unit tests, including differential vectors from both references
 npm run verify        # the independent verifier: 112 checks, sharing no module with the lab
 npm run verify:manifest
-npm run test:a11y     # all four browser suites, 45 tests, against the production build
+npm run test:a11y     # all four browser suites, 50 tests, against the production build
 ```
 
 `npm run test:a11y` builds the site and serves the build with `vite preview` before it
@@ -320,7 +331,7 @@ starts, so what passes there is what ships. The four suites can be run one at a 
 npx playwright test e2e/a11y.spec.ts     # axe WCAG 2.1 A/AA plus further oracles; slow
 npx playwright test e2e/claims.spec.ts   # 20 tests that re-derive what the page says
 npx playwright test e2e/smoke.spec.ts    # every act mounts and computes at either depth
-npx playwright test e2e/visual.spec.ts   # 21 geometry tests at four viewports; ~40 s
+npx playwright test e2e/visual.spec.ts   # 25 geometry tests at four viewports; ~80 s
 ```
 
 The unit suite is differential, not self-referential: every expectation for the hash, the
@@ -426,7 +437,7 @@ is handsome; it checks that no result is clipped, vertical, overlapping or hidde
 
 ## Performance
 
-The bundle is large for a lab of this kind — around 830 kB, 330 kB gzipped — and almost
+The bundle is large for a lab of this kind — around 840 kB, 335 kB gzipped — and almost
 all of it is data rather than code: the GPT-2 merge list the tokenizer is rebuilt from,
 and the two committed corpora that let the page recompute its own thresholds in the
 browser instead of asking you to trust them. That trade was made deliberately in favour of

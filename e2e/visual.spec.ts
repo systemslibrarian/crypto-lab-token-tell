@@ -424,6 +424,106 @@ const readAnchor = (id: string): AnchorGeometry => {
   };
 };
 
+interface ChapterSample {
+  readonly y: number;
+  /** Arrived at the bottom edge of the sticky bars, and at the line a deep link parks on. */
+  readonly expected: readonly string[];
+  readonly marked: string | null;
+  readonly atFoot: boolean;
+}
+
+interface ChapterSweep {
+  readonly ids: readonly string[];
+  readonly samples: readonly ChapterSample[];
+}
+
+/**
+ * Scroll the document to its foot in steps, and record what the chapter control claimed
+ * at each one against what the geometry said.
+ *
+ * The contract, stated here because it is the thing being gated rather than the thing
+ * being implemented: the marked chapter is the LAST chapter whose own top edge has passed
+ * the line at the top of the document — and at the foot of the document it is the LAST
+ * chapter in the list, because no further scrolling exists to bring the remaining targets
+ * up past that line and a control that can never mark its own last entry is broken. The
+ * short route's "Go deeper" panel sits inside Act VII a few hundred pixels above the end
+ * of the document, so at every width above a phone the first half of that rule alone can
+ * never reach it.
+ *
+ * "The line" is two lines fourteen pixels apart, and both are accepted. The lower is the
+ * bottom edge of the two sticky bars, from the custom properties the control itself
+ * publishes. The upper is where the stylesheet parks a deep-linked section — the same two
+ * heights plus the breathing room that stops a heading sitting flush against the bar —
+ * and a section that has just been jumped to has to count as arrived the moment it lands,
+ * or the chapter a reader chose would not be the chapter marked. Which of the two a given
+ * implementation reads is not this file's business; naming a chapter that has arrived by
+ * neither of them is. Both are read from the page's own computed style rather than from
+ * constants, so a change to the bars or to the spacing moves the oracle with them.
+ *
+ * The sweep runs inside the page rather than a step at a time from the test because four
+ * hundred-odd round trips is a minute of waiting for nothing: the mark is repainted by an observer
+ * and a frame callback, both of which are delivered inside the page, so four frames after
+ * each jump is the settle — and the marked chapter and the geometry are read in the same
+ * frame, which is what makes a disagreement a real disagreement rather than a race.
+ */
+const sweepChapters = async (step: number): Promise<ChapterSweep> => {
+  const root = document.documentElement;
+  const custom = (name: string): number =>
+    Number.parseFloat(getComputedStyle(root).getPropertyValue(name)) || 0;
+  const frame = (): Promise<void> =>
+    new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  const links = (): HTMLAnchorElement[] =>
+    Array.from(document.querySelectorAll<HTMLAnchorElement>('#chapters .chapters-link'));
+  const idOf = (link: Element | undefined): string =>
+    (link?.getAttribute('href') ?? '').replace('#', '');
+  const furthest = (): number => Math.max(0, root.scrollHeight - window.innerHeight);
+
+  // Read fresh at every sample rather than captured once. The control rebuilds itself
+  // whenever the depth changes or a target appears, and the short route's "Go deeper"
+  // panel arrives after the first render, so a list taken at the top of the sweep is one
+  // chapter short of the list being marked from a few hundred pixels down.
+  let ids = links().map((link) => idOf(link));
+  const samples: ChapterSample[] = [];
+  for (let y = 0; ; y += step) {
+    const to = Math.min(y, furthest());
+    window.scrollTo(0, to);
+    // Four frames: the scroll event and the intersection callback are both delivered at a
+    // rendering opportunity rather than synchronously, and whichever of them the control
+    // listens to gets its own frame to answer in before the mark is read.
+    for (let i = 0; i < 4; i++) await frame();
+
+    ids = links().map((link) => idOf(link));
+    const bars = custom('--cl-topbar-h') + custom('--chapters-h');
+    const parked = Number.parseFloat(getComputedStyle(root).scrollPaddingTop) || 0;
+    let atBars = '';
+    let atParked = '';
+    for (const id of ids) {
+      const target = document.getElementById(id);
+      // A chapter whose target is not being painted has no top edge to have passed
+      // anything, and its zero rect would otherwise read as "arrived".
+      if (!target || target.getClientRects().length === 0) continue;
+      if (atBars === '') atBars = id;
+      if (atParked === '') atParked = id;
+      const top = target.getBoundingClientRect().top;
+      const own = Number.parseFloat(getComputedStyle(target).scrollMarginTop) || parked || bars;
+      if (top - bars <= 1) atBars = id;
+      if (top - own <= 1) atParked = id;
+    }
+    const atFoot = Math.round(window.scrollY) >= furthest() - 1;
+    const marked = links().find((link) => link.getAttribute('aria-current') === 'true');
+    const last = ids[ids.length - 1];
+
+    samples.push({
+      y: Math.round(window.scrollY),
+      expected: atFoot && last ? [last] : [...new Set([atBars, atParked])],
+      marked: marked ? idOf(marked) : null,
+      atFoot,
+    });
+    if (to >= furthest()) break;
+  }
+  return { ids, samples };
+};
+
 /* -----------------------------------------------------------------------------------
    Driving the page.
    ----------------------------------------------------------------------------------- */
@@ -729,6 +829,51 @@ for (const viewport of VIEWPORTS) {
           `${anchor.hit}`).toBe(true);
       }
     });
+
+    test('the marked chapter follows a real scroll, and the last chapter is reachable',
+      async ({ page }) => {
+        // The two `aria-current` assertions this repository already had both fire straight
+        // after a CLICK, which the control answers eagerly from its own click handler.
+        // Nothing anywhere scrolled the page and then asked what was marked — which is how
+        // a control that disagreed with the document at a third of all positions, and that
+        // could never mark its own last chapter at any width, passed every gate green.
+        //
+        // The phone's Full lab document is a little over 39,000 px, so this is about 130
+        // samples at that width alone, and roughly nine seconds of sweeping. The budget is
+        // raised because the two page loads in front of it each run the detector as well.
+        test.setTimeout(240_000);
+
+        for (const mode of MODES) {
+          await open(page, mode);
+          const { ids, samples } = await page.evaluate(sweepChapters, 300);
+          const where = `${mode} @${viewport.width}`;
+
+          expect(ids.length, `${where}: the chapter control must offer this depth's beats`)
+            .toBeGreaterThan(3);
+          expect(samples.length, `${where}: the sweep must reach the foot of the document`)
+            .toBeGreaterThan(3);
+
+          const wrong = samples.filter(
+            (sample) => !sample.expected.includes(sample.marked ?? ''));
+          expect(
+            wrong.map((sample) =>
+              `y=${sample.y}${sample.atFoot ? ' (foot)' : ''}: marked ` +
+              `${sample.marked ?? 'nothing'}, arrived ${sample.expected.join(' or ')}`),
+            `${where}: the chapter control disagreed with the document at ` +
+            `${wrong.length} of ${samples.length} scroll positions`,
+          ).toEqual([]);
+
+          // Stated on its own because it is the headline failure and it would otherwise be
+          // one line inside the list above: a chapter that is never marked is a chapter the
+          // reader is never told they are in.
+          const last = ids[ids.length - 1];
+          expect(
+            samples.some((sample) => sample.marked === last),
+            `${where}: "${last}" is the last chapter and was never marked across ` +
+            `${samples.length} positions down to the foot of the document`,
+          ).toBe(true);
+        }
+      });
   });
 }
 
@@ -966,4 +1111,112 @@ test.describe('presenter states at laptop 1052', () => {
         .toHaveCount(3, { timeout: 15_000 });
       await expect(page.locator('#hero-experiment .result-waiting')).toHaveCount(0);
     });
+});
+
+/**
+ * The page must not rearrange itself under the reader.
+ *
+ * Every control this lab's presenter bar is made of — the depth switch, the share action,
+ * the chapter bar — is built from script, which is the shape that produces layout shift:
+ * the host is an empty box at first paint and a real bar a fifth of a second later, and
+ * everything below it moves. Here that was the thesis and the one action in the first
+ * viewport, moving at about 200ms, which is precisely when a reader has started reading.
+ * It measured 0.23 at 1440 and 0.18 at 390 against Core Web Vitals' 0.1 bar for "good".
+ *
+ * Asserted as cumulative layout shift rather than as the reserved height that fixes it,
+ * because the height is a measured constant that would rot the moment a chip's padding or
+ * type size changed, and silently: the number would still be there, just wrong. The shift
+ * is the thing that actually matters to a reader, so the shift is what is gated.
+ *
+ * `hadRecentInput` entries are excluded by the observer, so a shift a reader caused by
+ * pressing something is not counted against the page. The observer is installed through
+ * `addInitScript` with `buffered: true`, which is the only way to see shifts that happen
+ * before any test code could have run.
+ */
+const MAX_CLS = 0.05;
+
+for (const viewport of VIEWPORTS) {
+  for (const mode of MODES) {
+    test(`${viewport.name} · ${mode} · nothing moves under the reader while the page mounts`,
+      async ({ page }) => {
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        await page.addInitScript(() => {
+          const store = window as unknown as {
+            __cls?: number;
+            __shifts?: { value: number; at: number; sources: string[] }[];
+          };
+          store.__cls = 0;
+          store.__shifts = [];
+          new PerformanceObserver((list) => {
+            for (const entry of list.getEntries()) {
+              const shift = entry as PerformanceEntry & {
+                value: number;
+                hadRecentInput: boolean;
+                sources?: { node?: Node }[];
+              };
+              if (shift.hadRecentInput) continue;
+              store.__cls = (store.__cls ?? 0) + shift.value;
+              store.__shifts?.push({
+                value: Number(shift.value.toFixed(4)),
+                at: Math.round(entry.startTime),
+                sources: (shift.sources ?? []).map((source) => {
+                  const node = source.node as Element | null;
+                  return node?.tagName
+                    ? `${node.tagName.toLowerCase()}.${(node.getAttribute('class') ?? '').trim()}`
+                    : 'unknown';
+                }),
+              });
+            }
+          }).observe({ type: 'layout-shift', buffered: true });
+        });
+
+        await page.goto(`./?mode=${mode}`);
+        // The whole mount, not the first frame of it: the acts render across several
+        // frames and a shift can arrive with any of them.
+        await expect(page.locator('#hero-experiment .result-card .verdict')).toHaveCount(3);
+        // `:visible`, because the control renders BOTH of its shapes and the stylesheet
+        // chooses between them by width: on a phone the link row is in the DOM and hidden,
+        // so a plain locator would settle on a node that is never going to be visible.
+        await expect(page.locator('.chapters-link:visible, .chapters-select:visible').first())
+          .toBeVisible();
+        await page.waitForLoadState('networkidle');
+
+        const shift = await page.evaluate(() => {
+          const store = window as unknown as {
+            __cls?: number;
+            __shifts?: { value: number; at: number; sources: string[] }[];
+          };
+          return { cls: Number((store.__cls ?? 0).toFixed(4)), entries: store.__shifts ?? [] };
+        });
+
+        expect(shift.cls,
+          'cumulative layout shift while the page mounts — a bar built from script must '
+          + `have its height reserved before it fills. Shifts: ${JSON.stringify(shift.entries)}`)
+          .toBeLessThanOrEqual(MAX_CLS);
+      });
+  }
+}
+
+/**
+ * The chapter control arrives complete.
+ *
+ * The short route's last chapter points at a panel Act VII builds, several frames after
+ * this control first paints. Listed only once its target existed, it appeared inside the
+ * bar a third of a second in — a control growing an entry while the reader is looking at
+ * it. This asserts the count is right from the control's first paint, and that pressing
+ * the entry works even if the press wins the race against the act that owns its target.
+ */
+test('the chapter control lists every chapter from its first paint', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('./?mode=demo');
+  const links = page.locator('.chapters-inner .chapters-link');
+  // Asserted before the render pass has finished, which is the window the defect lived in.
+  await expect(links).toHaveCount(5);
+  await expect(page.locator('#hero-experiment .result-card .verdict')).toHaveCount(3);
+  await expect(links).toHaveCount(5);
+
+  // And the last one takes the reader somewhere, rather than being a label over nothing.
+  await links.last().click();
+  await expect(page.locator('#branch-depth')).toBeVisible();
+  await expect(page).toHaveURL(/#branch-depth$/);
 });

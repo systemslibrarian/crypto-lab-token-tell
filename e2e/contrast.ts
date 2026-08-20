@@ -627,18 +627,37 @@ export async function auditContrast(
       // inset(50%)` does the same. Measuring either reports a ratio for ink
       // that was never laid down.
       //
-      // This lab does NOT use the idiom today: `.sr-only`, `visually-hidden`
-      // and every spelling of them are absent from `src/` and `index.html`
-      // (grepped, not assumed), and every `role="status"` live region here is a
-      // VISIBLE element whose ink this walk measures for real — the nine
-      // `liveRegion(...)` readouts from `dom.ts:96` (detector results and the
+      // This lab DOES use the idiom, and this guard is now load-bearing rather
+      // than defensive. `.sr-only` (`src/style.css:66`: 1x1, `overflow:
+      // hidden`, `clip-path: inset(50%)`) is applied by `dom.ts`'s `srOnly()`
+      // helper and by hand in `index.html`, and the elements carrying it fall
+      // into three kinds:
+      //
+      //   - announcers that speak what a visible region shows in a form worth
+      //     hearing — the reset status in `index.html:217`, the depth switch's,
+      //     the copy-link one, the hero sweep's and Act VII's;
+      //   - names and descriptions for controls whose visible text is not
+      //     enough on its own: the chapter chooser's label, the three
+      //     `Show calculation` suffixes that tell one card's disclosure from
+      //     another's, and the two `title`-replacing notes on Copy link and
+      //     the global reset;
+      //   - the `leads to` in `dom.ts:108`, which says out loud what the
+      //     consequence line draws as an arrow.
+      //
+      // Every one of those paints zero pixels, so measuring any of them would
+      // report a phantom ratio — and, worse, a FAILING one, since the idiom
+      // sets no colours of its own and simply inherits whatever it sits in.
+      // The visible live regions are still measured for real: the ten
+      // `liveRegion(...)` readouts from `dom.ts` (detector results and the
       // recomputed statistics, the wrong-key distribution, corpus-scale
       // entropy, the attack sweep, both signature statuses, and the stripping
-      // and regeneration results) plus the three `.progress` paragraphs that
-      // announce long computations. The guard stays because the day a
-      // visually-hidden announcer is added (the normal next step for a lab
-      // like this), measuring it would report a fresh phantom ratio on every
-      // scan. It is deliberately narrow: only a ZERO-AREA clip qualifies, so a
+      // and regeneration results) and the four `.progress` paragraphs that
+      // still carry `role="status"` — Act V's two and Act VII's two. The other
+      // four `.progress` lines dropped their live semantics deliberately, so
+      // that a chunked sweep announces twice rather than once per chunk; they
+      // are plain visible text and this walk measures them like any other.
+      //
+      // It is deliberately narrow: only a ZERO-AREA clip qualifies, so a
       // partially clipped element is still measured, worst case.
       if (clippedToNothing(cs)) return false;
       return true;

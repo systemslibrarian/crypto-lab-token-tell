@@ -19,6 +19,12 @@
  * deep link: a presenter who has chosen a distribution can hand over the URL and know the
  * next person sees the same tournament, rather than the shipped default with a spoken
  * instruction attached.
+ *
+ * The subsections are `h3`s because they are the first level of structure beneath the
+ * act's own `h2`, and a reader navigating by heading should not have to guess at a level
+ * that was skipped. The bracket has two mutually exclusive spellings — the literal one,
+ * and the layered one the slider reaches above eight layers — and they fill the same slot,
+ * so they carry the same level whichever one is on screen.
  */
 
 import distributions from '../data/pinned/distributions.json';
@@ -292,7 +298,7 @@ function renderLiteralBracket(
 
   const ties = result.matches.filter((match) => match.decidedByTieBreak).length;
   return el('div', {}, [
-    el('h4', { text: 'The literal bracket' }),
+    el('h3', { text: 'The literal bracket' }),
     el('p', { class: 'note' }, [
       `${integer(result.leaves.length)} candidates were actually drawn and played off. Each ` +
       'chip is one match: the two competitors, their g-values for that layer, and the ' +
@@ -323,7 +329,7 @@ function renderAggregatedView(
   ]));
 
   return el('div', {}, [
-    el('h4', { text: 'Above eight layers: the layered view' }),
+    el('h3', { text: 'Above eight layers: the layered view' }),
     el('p', { class: 'note' }, [
       `A tournament of ${integer(depth)} layers starts from ${integer(conceptualCandidates)} ` +
       'candidates. That number is the real conceptual starting field — and this browser did ' +
@@ -375,7 +381,7 @@ function renderDistributionShift(
     ]));
 
   return el('div', {}, [
-    el('h4', { text: 'What the key moved' }),
+    el('h3', { text: 'What the key moved' }),
     el('p', { class: 'note' }, [
       'Three things stay distinct on this page and this table is where they meet: the raw ' +
       'model logits, the sampling distribution after temperature and top-k, and the keyed ' +
