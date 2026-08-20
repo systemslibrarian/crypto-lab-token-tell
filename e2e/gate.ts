@@ -39,8 +39,8 @@ export const NARROW = { width: 380, height: 800 };
  *     Depth is changed through the `?mode=` a presenter really links to or
  *     through the segmented control a reader really presses — never by removing
  *     `hidden` from script, which would reintroduce precisely the defect this
- *     rule names. The ten disclosures are opened through their `<summary>` for
- *     the same reason, and both states are scanned.
+ *     rule names. Every disclosure is opened through its `<summary>` for the
+ *     same reason, and both states are scanned.
  *
  *  2b. AND `hidden` MAKES EVERY ORACLE BLIND. Measured, not assumed: a nameless
  *     button, an alt-less image, a nameless select, an unlabelled input and a
@@ -443,8 +443,11 @@ export async function boot(
   // built on first open rather than eagerly, so what arrival can assert is that
   // the route to it exists; `driveLab` opens it and checks the stream itself.
   await expect(page.locator('#act-2 .verdict')).toHaveCount(1);
-  await expect(page.locator('#act-2 details summary'))
-    .toHaveText('Show the pipeline, on this text');
+  // Named rather than positional: this act now carries a second disclosure — the folded
+  // half of its "why this lab cannot check Gemini" box — and the claim here is about the
+  // route into the pipeline breakdown specifically.
+  await expect(page.locator('#act-2 details summary')
+    .filter({ hasText: 'Show the pipeline, on this text' })).toHaveCount(1);
   // Act I renders a literal bracket at its default depth of three.
   await expect(page.locator('#act-1 .bracket .bracket-layer')).toHaveCount(3);
 
@@ -467,16 +470,25 @@ export async function boot(
   // as well as in total, because a total alone absorbs a disclosure appearing
   // in one panel while another loses its own.
   await expect(page.locator('details[open]')).toHaveCount(0);
-  await expect(page.locator('details')).toHaveCount(10);
-  // The Hero: one over the digests, and one calculation trail per result card.
-  await expect(page.locator('#hero-experiment details')).toHaveCount(4);
+  await expect(page.locator('details')).toHaveCount(17);
+  // The Hero: one over the digests, one calculation trail per result card, and two folded
+  // explanations — the one-bit result and the cross-implementation result. Its date
+  // corrections are deliberately not folded; see the comment on them.
+  await expect(page.locator('#hero-experiment details')).toHaveCount(6);
   await expect(page.locator('#hero-experiment details.result-calculation')).toHaveCount(3);
-  await expect(page.locator('#act-2 details')).toHaveCount(1);
-  // Act IV's two attack-provenance disclosures, which is what this count was.
-  await expect(page.locator('#act-4 details')).toHaveCount(2);
+  // One at the shipped depth: Act I's other folded explanation belongs to the layered
+  // view, which is not rendered until the bracket passes eight layers.
+  await expect(page.locator('#act-1 details')).toHaveCount(1);
+  await expect(page.locator('#act-2 details')).toHaveCount(2);
+  await expect(page.locator('#act-3 details')).toHaveCount(1);
+  // Act IV's two attack-provenance disclosures and the folded half of its theory panel.
+  // The third explanation is inside the live sweep, which has not run yet.
+  await expect(page.locator('#act-4 details')).toHaveCount(3);
   await expect(page.locator('#act-5 details')).toHaveCount(1);
   await expect(page.locator('#act-6 details')).toHaveCount(1);
   await expect(page.locator('#act-7 details')).toHaveCount(1);
+  // Act VIII paints nothing until its run, so only the framing panel's fold is here.
+  await expect(page.locator('#act-8 details')).toHaveCount(1);
   // Act VII's eleven row explanations are `aria-expanded` triggers over rows that
   // are `hidden`, not `<details>`, so they are counted in their own shape.
   await expect(page.locator('#act-7 .compare-table button[aria-expanded]')).toHaveCount(11);
@@ -885,7 +897,7 @@ type ScanAt = (state: string) => Promise<void>;
  *
  *  - THE ARRIVAL STATE IS SCANNED FIRST, exactly as a reader gets it: every act
  *    mounted, the Hero's three runs computed, Act V signed, Act VI signed, Act
- *    I's bracket at depth three, all ten disclosures shut. The gate this
+ *    I's bracket at depth three, every disclosure shut. The gate this
  *    replaces force-revealed everything before its only scan.
  *
  *  - THE DEMO BEATS ARE DRIVEN IN THE ORDER THE SCRIPT READS THEM — the proof,
@@ -1282,7 +1294,8 @@ async function driveLab(page: Page, scanAt: ScanAt): Promise<void> {
   // and both readouts — is built on first open, so until this is pressed it is
   // not a closed region but an absent one, and a drive that never opened it
   // would leave the largest rendering in this act unscanned.
-  await page.locator('#act-2 details summary').click();
+  await page.locator('#act-2 details summary')
+    .filter({ hasText: 'Show the pipeline, on this text' }).click();
   await expect(page.locator('#act-2 details .token-stream')).toHaveCount(1);
   await expect(page.locator('#act-2 .token-stream .token').first()).toBeVisible();
   await scanAt('Act II: the pipeline breakdown built and open, on the text just scored');
@@ -1384,6 +1397,29 @@ async function driveLab(page: Page, scanAt: ScanAt): Promise<void> {
   await expect(act8.locator('.act-headline')).toHaveCount(0);
   await expect(page.locator('#act8-mixture')).toHaveValue('0.30');
   await scanAt('Act VIII: the estimate reset, back to the panel a reader arrives at');
+
+  // ── Every folded explanation, open ──────────────────────────────────────
+  // The reasoning behind most panels now travels behind a summary, and a closed
+  // <details> lays its body out and paints nothing — which is precisely the state
+  // every oracle here reads as absent (rule 2b). So they are opened, through
+  // their own summaries rather than by setting `.open` from script, and the whole
+  // set is scanned in one pass rather than one scan apiece. Then closed again, so
+  // what follows measures the geometry a reader actually arrives at.
+  const summaries = page.locator('.act details > summary');
+  const summaryCount = await summaries.count();
+  const opened: number[] = [];
+  for (let index = 0; index < summaryCount; index += 1) {
+    const summary = summaries.nth(index);
+    if (!await summary.isVisible()) continue;
+    const alreadyOpen = await summary.evaluate(
+      (node) => (node.parentElement as HTMLDetailsElement).open);
+    if (alreadyOpen) continue;
+    await summary.click();
+    opened.push(index);
+  }
+  await expect(page.locator('.act details[open]')).not.toHaveCount(0);
+  await scanAt('every folded explanation open at once');
+  for (const index of opened) await summaries.nth(index).click();
 
   await driveChapters(page, scanAt, 'lab');
 

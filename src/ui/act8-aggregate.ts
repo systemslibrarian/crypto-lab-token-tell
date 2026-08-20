@@ -34,11 +34,11 @@ import {
 import type { OperatingPoint, PrevalenceEstimate } from '../watermark/aggregate.ts';
 import { makeKeyStream } from '../watermark/null-model.ts';
 import { scoreTokens } from '../watermark/score.ts';
-import { resetButton, runGuarded } from './busy.ts';
+import { armableReset, runGuarded } from './busy.ts';
 import { lineChart } from './chart.ts';
 import {
   actHeader, button, clear, consequence, el, fixed, integer, labelledSelect, liveRegion,
-  nextFrame, panel, provenanceTag, readout, scroller, srOnly,
+  nextFrame, panel, provenanceTag, readout, reasoning, scroller, srOnly,
 } from './dom.ts';
 
 const GPT2_EOS = 50256;
@@ -122,13 +122,13 @@ function renderFrame(): HTMLElement {
       'flagged at the false-positive rate. Both rates are measurable, so the mixture can ' +
       'be solved for.',
     ]),
-    el('p', { class: 'note' }, [
+    reasoning([el('p', { class: 'note' }, [
       'That is the whole of the correction, published by Rogan and Gladen in 1978 for ' +
       'exactly this problem in epidemiology: estimating how common something is in a ' +
       'population using a test that is wrong about individuals. Nothing about it repairs ' +
       'the individual verdicts. Every one of them is as weak here as it was in Act II — ' +
       'the panel below measures how weak, on the same corpus, at the same moment.',
-    ]),
+    ])], 'Where this arithmetic comes from'),
     el('p', { class: 'note' }, [
       'Useless for judging one essay. Serviceable for measuring a population. Those are ' +
       'two different products, and only one of them is what schools, courts and newsrooms ' +
@@ -182,9 +182,12 @@ function renderMeasurement(): HTMLElement {
   };
 
   const start = (): Promise<void> => runGuarded(run, {
-    controls: [runButton, resetControl, mixtureSelect],
+    controls: [runButton, resetControl.node, mixtureSelect],
     region: output,
     onError: () => { progress.textContent = ''; announcer.textContent = ''; },
+    // See the hero's sweep: the guard restores every control to the state it found, so a
+    // control armed inside the run would be switched off again on the way out.
+    onSettled: () => { if (output.childElementCount > 0) resetControl.arm(); },
   });
 
   const reset = (): void => {
@@ -196,7 +199,12 @@ function renderMeasurement(): HTMLElement {
   };
 
   const runButton = button('Score the corpus and estimate', () => { void start(); }, true);
-  const resetControl = resetButton('Reset the estimate', reset);
+  const resetControl = armableReset(
+    'Reset the estimate',
+    'There is no estimate to reset yet. Score the corpus first; this then clears the '
+    + 'result and puts the mixture back to 30%.',
+    reset,
+  );
   // A mixture chosen before the run is the mixture the run will use; chosen after it, the
   // corpus is re-mixed out of scores already in hand, which is instant and re-uses every
   // document rather than scoring a second pile.
@@ -213,7 +221,8 @@ function renderMeasurement(): HTMLElement {
       `${integer(markedCorpus().length - CALIBRATION_TEXTS)} are what gets measured, so no ` +
       'measured document shares a generation with a calibrating one.',
     ]),
-    el('div', { class: 'controls' }, [mixtureField, runButton, resetControl]),
+    el('div', { class: 'controls' }, [mixtureField, runButton, resetControl.node]),
+    resetControl.note,
     progress,
     announcer,
     output,
@@ -554,12 +563,12 @@ function renderLadder(rungs: Rung[], fraction: number): HTMLElement {
         el('tbody', {}, rows),
       ]),
     ]),
-    el('p', { class: 'note' }, [
+    reasoning([el('p', { class: 'note' }, [
       'Each corpus contains the one above it: documents are added, never redrawn. The ' +
       'estimate wanders early — the smallest corpus here is 32 documents, and a handful of ' +
       'flags either way moves it several points — and the interval is what says so at ' +
       'every size, rather than only where it happens to be wide.',
-    ]),
+    ])], 'How the ladder is built'),
   ], provenanceTag('demo', 'Wilson interval carried through the correction'));
 }
 
@@ -579,19 +588,21 @@ function renderCalibration(
       ['Separation the correction divides by',
         percent(point.truePositiveRate - point.falsePositiveRate)],
     ], 'Operating point'),
-    el('p', { class: 'note' }, [
-      'The threshold is placed on unmarked calibration documents alone, then both rates are ' +
-      'measured at it. The two held-out rows are the same rates on documents the threshold ' +
-      'never saw: they are not what the correction uses, and the distance between the two ' +
-      'pairs is the part of the answer’s error that no amount of corpus would remove.',
-    ]),
-    el('p', { class: 'note' }, [
-      'The separation is the detector’s whole worth as an instrument here. Divide by it and ' +
-      'the sampling error in the flagged count is magnified by its reciprocal — which is ' +
-      `why a corpus scored by a detector this weak (${percent(point.truePositiveRate)} of ` +
-      'marked documents flagged) still needs hundreds of documents to reach an interval a ' +
-      'few points wide.',
-    ]),
+    reasoning([
+      el('p', { class: 'note' }, [
+        'The threshold is placed on unmarked calibration documents alone, then both rates are ' +
+        'measured at it. The two held-out rows are the same rates on documents the threshold ' +
+        'never saw: they are not what the correction uses, and the distance between the two ' +
+        'pairs is the part of the answer’s error that no amount of corpus would remove.',
+      ]),
+      el('p', { class: 'note' }, [
+        'The separation is the detector’s whole worth as an instrument here. Divide by it and ' +
+        'the sampling error in the flagged count is magnified by its reciprocal — which is ' +
+        `why a corpus scored by a detector this weak (${percent(point.truePositiveRate)} of ` +
+        'marked documents flagged) still needs hundreds of documents to reach an interval a ' +
+        'few points wide.',
+      ]),
+    ], 'How the threshold was placed, and what the separation costs'),
   ], provenanceTag('pinned', `${integer(CALIBRATION_TEXTS * 2)} calibration texts`));
 }
 

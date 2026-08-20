@@ -23,11 +23,11 @@ import texts from '../data/pinned/texts.json';
 import { defaultConstruction, tokenizer, watermarkParams } from '../lab-config.ts';
 import { scoreTokens } from '../watermark/score.ts';
 import type { ScoreResult } from '../watermark/score.ts';
-import { resetButton, runGuarded } from './busy.ts';
+import { armableReset, runGuarded } from './busy.ts';
 import { lineChart } from './chart.ts';
 import {
   actHeader, button, clear, consequence, disclosure, el, fixed, integer, liveRegion,
-  nextFrame, panel, provenanceTag, readout, scroller, srOnly,
+  nextFrame, panel, provenanceTag, readout, reasoning, scroller, srOnly,
 } from './dom.ts';
 import { thresholdForLength } from './score-card.ts';
 import type { ThresholdInfo } from './score-card.ts';
@@ -268,14 +268,14 @@ function renderLiveAttacks(resetPinned: () => void): HTMLElement {
           el('tbody', {}, rows),
         ]),
       ]),
-      el('p', { class: 'note' }, [
+      reasoning([el('p', { class: 'note' }, [
         'Truncation and deletion both remove evidence, but they are not the same attack: ' +
         'truncation leaves the surviving context windows intact and simply gives the ' +
         'detector fewer of them, while deletion breaks the windows around every removed ' +
         'token, so a given percentage costs more than the token count suggests. ' +
         'Replacement does both — it breaks windows and it substitutes tokens the key never ' +
         'chose.',
-      ]),
+      ])], 'Why deletion costs more than truncation'),
     );
 
     const deletionMean = meanAt(results.deletion, strongest);
@@ -293,9 +293,12 @@ function renderLiveAttacks(resetPinned: () => void): HTMLElement {
    * contract is to empty what it was given the moment the work settles.
    */
   const start = (): Promise<void> => runGuarded(sweep, {
-    controls: [runButton, resetControl],
+    controls: [runButton, resetControl.node],
     region: output,
     onError: () => { progress.textContent = ''; announcer.textContent = ''; },
+    // Armed after the guard restores the controls it switched off, and only if the sweep
+    // left something to put back.
+    onSettled: () => { if (output.childElementCount > 0) resetControl.arm(); },
   });
 
   const reset = () => {
@@ -306,7 +309,12 @@ function renderLiveAttacks(resetPinned: () => void): HTMLElement {
   };
 
   const runButton = button('Run the sweep', () => { void start(); }, true);
-  const resetControl = resetButton('Reset the attacks', reset);
+  const resetControl = armableReset(
+    'Reset the attacks',
+    'There is no sweep to reset yet. Run the sweep first; this then clears every measured '
+    + 'run and puts the pinned attacks back.',
+    reset,
+  );
 
   return panel('Live attacks: truncation, deletion, replacement', [
     el('p', { class: 'note' }, [
@@ -321,7 +329,8 @@ function renderLiveAttacks(resetPinned: () => void): HTMLElement {
       'cheap the attack is. The semantically-aware attacks on this page are the ' +
       'back-translation and the paraphrase below, both run through real models.',
     ]),
-    el('div', { class: 'controls' }, [runButton, resetControl]),
+    el('div', { class: 'controls' }, [runButton, resetControl.node]),
+    resetControl.note,
     progress,
     announcer,
     output,
@@ -449,18 +458,20 @@ function renderTheory(): HTMLElement {
       'selection history entirely — not because the rewrite attacked the watermark, but ' +
       'because the watermark was never attached to the meaning in the first place.',
     ]),
-    el('p', { class: 'note' }, [
-      'That is the theoretical reason, and it is stated separately from the measurement ' +
-      'above on purpose. The measurement is what these particular models did to this ' +
-      'particular text under this particular configuration. The reasoning says what to ' +
-      'expect in general; the table says what happened here, and if the two ever disagree ' +
-      'the table wins.',
-    ]),
-    el('p', { class: 'note' }, [
-      'There is an active line of research responding to exactly this: watermarking schemes ' +
-      'that bind the mark to semantic content — sentence embeddings, paraphrase-invariant ' +
-      'partitions — so that a rewrite preserving the meaning also preserves the mark. This ' +
-      'lab does not implement any of it. See the sources section for the citations.',
-    ]),
+    reasoning([
+      el('p', { class: 'note' }, [
+        'That is the theoretical reason, and it is stated separately from the measurement ' +
+        'above on purpose. The measurement is what these particular models did to this ' +
+        'particular text under this particular configuration. The reasoning says what to ' +
+        'expect in general; the table says what happened here, and if the two ever disagree ' +
+        'the table wins.',
+      ]),
+      el('p', { class: 'note' }, [
+        'There is an active line of research responding to exactly this: watermarking schemes ' +
+        'that bind the mark to semantic content — sentence embeddings, paraphrase-invariant ' +
+        'partitions — so that a rewrite preserving the meaning also preserves the mark. This ' +
+        'lab does not implement any of it. See the sources section for the citations.',
+      ]),
+    ], 'How to read this against the measurement, and what answers it'),
   ], provenanceTag('paper', 'construction has no semantic component'));
 }

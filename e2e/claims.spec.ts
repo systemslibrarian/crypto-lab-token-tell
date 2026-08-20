@@ -583,6 +583,58 @@ test('the population estimate is what its own printed inputs imply', async ({ pa
   expect(richer).toBeGreaterThan(estimate);
 });
 
+/**
+ * A reset that has nothing to reset says so, rather than doing nothing.
+ *
+ * The defect this pins down was invisible to every other check here: pressing "Reset the
+ * sweep" before running a sweep did exactly what it should — nothing — and looked exactly
+ * like a broken control while doing it, because the page gave no signal either way. The
+ * page's own rule, stated in the README and obeyed by Act V's flip and strip controls, is
+ * that a control which cannot act is switched off with the reason on it.
+ *
+ * Asserted as a cycle rather than as a state: disabled at arrival, enabled by the run,
+ * disabled again by its own press. The last of those is what makes the press perceptible
+ * even when the output it cleared was below the fold.
+ */
+test('a reset offers itself only when there is something to reset', async ({ page }) => {
+  await page.goto(LAB);
+  const panels: [string, string, string][] = [
+    ['#hero-experiment', 'Run the sweep', 'Reset the sweep'],
+    ['#act-3', 'Score the watermarked corpus', 'Reset the corpus scoring'],
+    ['#act-8', 'Score the corpus and estimate', 'Reset the estimate'],
+  ];
+
+  for (const [act, runLabel, resetLabel] of panels) {
+    const scope = page.locator(act);
+    const reset = scope.getByRole('button', { name: resetLabel });
+    const run = scope.getByRole('button', { name: runLabel });
+
+    await expect(reset, `${act}: nothing has run, so ${resetLabel} must be off`)
+      .toBeDisabled();
+    // The reason is carried where a disabled control can still be read, not only in a
+    // title a keyboard never surfaces.
+    const describedBy = await reset.getAttribute('aria-describedby');
+    expect(describedBy, `${act}: ${resetLabel} must name its reason`).toBeTruthy();
+    await expect(page.locator(`#${describedBy}`)).toContainText('first');
+
+    await run.click();
+    await expect(scope.locator('.progress')).toContainText('Done.', { timeout: 60_000 });
+    await expect(reset, `${act}: the run produced something, so ${resetLabel} must be on`)
+      .toBeEnabled();
+
+    await reset.click();
+    await expect(reset, `${act}: ${resetLabel} must switch itself off once it has fired`)
+      .toBeDisabled();
+    // And it actually cleared the panel rather than only switching itself off. The Hero
+    // keeps three result figures of its own, which the sweep's reset must not touch.
+    const figures = act === '#hero-experiment'
+      ? scope.locator('.panel', { hasText: 'Not one wrong key' }).locator('figure')
+      : scope.locator('figure');
+    await expect(figures, `${act}: ${resetLabel} must clear what the run drew`)
+      .toHaveCount(0);
+  }
+});
+
 test('the social preview prints the three scores this page computes', async ({ page }) => {
   // The Open Graph image is generated from these numbers rather than drawn, so the alt
   // text is a claim about the detector made outside the page — and the one claim on this

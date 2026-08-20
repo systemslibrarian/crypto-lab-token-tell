@@ -174,3 +174,63 @@ export function resetButton(label: string, onReset: () => void): HTMLButtonEleme
   node.classList.add('reset-control');
   return node;
 }
+
+/**
+ * The same control, for a panel that has nothing to put back until something has run.
+ *
+ * Five of the resets on this page sit beside a panel that renders nothing at all until a
+ * button is pressed. Offered enabled, they answer a press by doing nothing and saying
+ * nothing, which is indistinguishable from a broken control — and it is the reading a
+ * reader reaches first, because pressing an unfamiliar button to see what it does is how
+ * anyone explores a page. This lab already answers that everywhere else: Act V's flip and
+ * strip controls are switched off until a manifest exists, with the reason stated rather
+ * than left to be inferred from a grey button.
+ *
+ * So the state IS the feedback, in both directions. Disabled means there is nothing to
+ * reset; pressing an enabled one clears the panel and switches the control off, which is a
+ * visible change even when the output it cleared was below the fold.
+ *
+ * The reason travels with it rather than only as a `title`: Chrome shows no title on
+ * keyboard focus and a touch screen shows none at all, and a disabled control is still in
+ * the accessibility tree, where `aria-describedby` is read.
+ */
+export interface ArmableReset {
+  readonly node: HTMLButtonElement;
+  /** The reason, as an element the caller places beside the controls. */
+  readonly note: HTMLElement;
+  /** There is output to put back now. */
+  arm(): void;
+  /** Nothing left to reset. */
+  disarm(): void;
+}
+
+let armableResetCount = 0;
+
+export function armableReset(
+  label: string, reason: string, onReset: () => void,
+): ArmableReset {
+  armableResetCount += 1;
+  const noteId = `reset-reason-${armableResetCount}`;
+  const note = el('p', { class: 'sr-only', id: noteId, text: reason });
+  const node = button(label, () => {
+    onReset();
+    control.disarm();
+  });
+  node.classList.add('reset-control');
+  node.setAttribute('aria-describedby', noteId);
+
+  const control: ArmableReset = {
+    node,
+    note,
+    arm(): void {
+      node.disabled = false;
+      node.removeAttribute('title');
+    },
+    disarm(): void {
+      node.disabled = true;
+      node.title = reason;
+    },
+  };
+  control.disarm();
+  return control;
+}

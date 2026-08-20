@@ -143,6 +143,33 @@ export function disclosure(
 }
 
 /**
+ * The reasoning behind a result, folded away until it is asked for.
+ *
+ * This page argues by explaining, and the explanations had grown past what a reader will
+ * work through before they have seen anything happen: most panels opened with a claim,
+ * showed a measurement, and then spent two or three paragraphs on why the measurement
+ * looks the way it does. The claim and the measurement are what the panel is for; the
+ * paragraphs are what an unconvinced reader comes back for. So they travel behind a
+ * summary, in the same shape Act VII already uses for its row explanations.
+ *
+ * Two rules, and they are what keep this from being a way to hide the awkward half. A
+ * caveat never folds — anything naming what a result does not prove, what this lab
+ * simplified, or which corpus a number is specific to stays on the face of the panel. And
+ * the summary says what is behind it rather than "more", so a reader can tell from the
+ * closed state whether they need it.
+ *
+ * Built eagerly: the body is static prose, so there is nothing to defer, and content that
+ * exists only after a click is content the claims suite cannot read and a browser cannot
+ * find with ⌘F.
+ */
+export function reasoning(
+  children: Node[],
+  summaryText = 'Why this matters',
+): HTMLElement {
+  return disclosure(summaryText, () => children, { eager: true });
+}
+
+/**
  * Below this the value column cannot hold a four-digit figure on one line. The gate's own
  * bar for a readout value is eight characters and four characters to a line
  * (`e2e/visual.spec.ts`), which at this face and size is about 57px; the margin above it

@@ -30,10 +30,10 @@ import {
 } from '../watermark/entropy.ts';
 import { accumulateHash } from '../watermark/hash.ts';
 import { applyTournamentReweighting, totalVariationDistance } from '../watermark/tournament.ts';
-import { resetButton, runGuarded } from './busy.ts';
+import { armableReset, runGuarded } from './busy.ts';
 import {
   actHeader, button, clear, consequence, el, fixed, integer, liveRegion, nextFrame, panel,
-  provenanceTag, readout, scroller, srOnly,
+  provenanceTag, readout, reasoning, scroller, srOnly,
 } from './dom.ts';
 
 type PinnedDistribution = typeof distributions.distributions.high_entropy;
@@ -98,34 +98,36 @@ export function renderAct3(root: HTMLElement): void {
         ]))),
       ]),
     ]),
-    el('p', { class: 'note' }, [
-      'Each row is computed exactly rather than sampled. Both distributions are explicit — ' +
-      'the pinned one, and the one keyed selection leaves behind — so the mean g-value of a ' +
-      'token drawn from either is the probability-weighted average of the g-values of its ' +
-      'own tokens, and the last column is the gap between the two. That gap is the evidence ' +
-      'one position contributes. It is not a claim about any other model or any other ' +
-      'context; it is what these pinned distributions do.',
-    ]),
-    el('p', { class: 'note' }, [
-      'Neither mean-g column is the 0.5 null. A g-value is a fixed function of the context, ' +
-      'the token and the key, so one frozen context has a mean of its own and it can sit ' +
-      'well above or well below a half — which is why "Mean g, unwatermarked" here does not ' +
-      'read 0.500 and is not meant to. The 0.5 Act II expects, and the threshold it derives, ' +
-      'come from averaging over contexts, which is what the corpus null measures. That is ' +
-      'why the last column subtracts each context’s own unwatermarked mean rather than 0.5.',
-    ]),
-    // The reconciliation B1 asks for, at the point where it bites hardest: one of these
-    // cards moves the distribution almost the whole way, which reads as a refutation of
-    // Act I unless the scope of the guarantee is stated where the number is.
-    el('p', { class: 'note' }, [
-      'The "distribution moved" figure on each card — as far as ' +
-      `${fixed(Math.max(...measurements.map((m) => m.totalVariation)), 4)} here — is not in ` +
-      'tension with the distribution-preservation property in Act I. That property is an ' +
-      'expectation over a uniformly random key, and a statement about a single decoding ' +
-      'step. These cards hold the key fixed at the one published set this lab ships and ' +
-      'report one step, so a large distance is one of the terms that expectation averages ' +
-      'over rather than a counterexample to it.',
-    ]),
+    reasoning([
+      el('p', { class: 'note' }, [
+        'Each row is computed exactly rather than sampled. Both distributions are explicit — ' +
+        'the pinned one, and the one keyed selection leaves behind — so the mean g-value of a ' +
+        'token drawn from either is the probability-weighted average of the g-values of its ' +
+        'own tokens, and the last column is the gap between the two. That gap is the evidence ' +
+        'one position contributes. It is not a claim about any other model or any other ' +
+        'context; it is what these pinned distributions do.',
+      ]),
+      el('p', { class: 'note' }, [
+        'Neither mean-g column is the 0.5 null. A g-value is a fixed function of the context, ' +
+        'the token and the key, so one frozen context has a mean of its own and it can sit ' +
+        'well above or well below a half — which is why "Mean g, unwatermarked" here does not ' +
+        'read 0.500 and is not meant to. The 0.5 Act II expects, and the threshold it derives, ' +
+        'come from averaging over contexts, which is what the corpus null measures. That is ' +
+        'why the last column subtracts each context’s own unwatermarked mean rather than 0.5.',
+      ]),
+      // The reconciliation B1 asks for, at the point where it bites hardest: one of these
+      // cards moves the distribution almost the whole way, which reads as a refutation of
+      // Act I unless the scope of the guarantee is stated where the number is.
+      el('p', { class: 'note' }, [
+        'The "distribution moved" figure on each card — as far as ' +
+        `${fixed(Math.max(...measurements.map((m) => m.totalVariation)), 4)} here — is not in ` +
+        'tension with the distribution-preservation property in Act I. That property is an ' +
+        'expectation over a uniformly random key, and a statement about a single decoding ' +
+        'step. These cards hold the key fixed at the one published set this lab ships and ' +
+        'report one step, so a large distance is one of the terms that expectation averages ' +
+        'over rather than a counterexample to it.',
+      ]),
+    ], 'How these columns are computed, and why neither mean-g reads 0.500'),
     el('p', { class: 'note' }, [
       'This is why "how many tokens do I need?" has no general answer. Two texts of the ' +
       'same length can carry very different amounts of evidence, because the model was ' +
@@ -300,9 +302,12 @@ function renderCorpusScale(): HTMLElement {
    * failure notice would be worse than nothing.
    */
   const start = (): Promise<void> => runGuarded(score, {
-    controls: [runButton, resetControl],
+    controls: [runButton, resetControl.node],
     region: output,
     onError: () => { progress.textContent = ''; announcer.textContent = ''; },
+    // After the guard has restored what it switched off, and only if the run left a
+    // result: an armed control put back by the guard would be switched off again.
+    onSettled: () => { if (output.childElementCount > 0) resetControl.arm(); },
   });
 
   const reset = () => {
@@ -312,14 +317,20 @@ function renderCorpusScale(): HTMLElement {
   };
 
   const runButton = button('Score the watermarked corpus', () => { void start(); }, true);
-  const resetControl = resetButton('Reset the corpus scoring', reset);
+  const resetControl = armableReset(
+    'Reset the corpus scoring',
+    'There is no corpus run to reset yet. Score the watermarked corpus first; this then '
+    + 'clears the result.',
+    reset,
+  );
 
   return panel('Where the watermark failed to take', [
     el('p', { class: 'note' }, [
       'The detection rate in Act II plateaus below 100% however long the text gets. This ' +
       'is why, computed here in the browser from the committed corpus rather than quoted.',
     ]),
-    el('div', { class: 'controls' }, [runButton, resetControl]),
+    el('div', { class: 'controls' }, [runButton, resetControl.node]),
+    resetControl.note,
     progress,
     announcer,
     output,

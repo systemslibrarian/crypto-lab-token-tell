@@ -25,11 +25,11 @@ import { defaultConstruction, tokenizer, watermarkParams } from '../lab-config.t
 import { binomialUpperTail } from '../watermark/frequentist.ts';
 import { scoreTokens } from '../watermark/score.ts';
 import type { ScoreResult } from '../watermark/score.ts';
-import { resetButton, runGuarded } from './busy.ts';
+import { armableReset, resetButton, runGuarded } from './busy.ts';
 import { lineChart } from './chart.ts';
 import {
   actHeader, button, clear, disclosure, el, fixed, integer, labelledSelect, liveRegion,
-  nextFrame, panel, provenanceTag, readout, scroller, srOnly,
+  nextFrame, panel, provenanceTag, readout, reasoning, scroller, srOnly,
 } from './dom.ts';
 import { param, setParam } from './mode.ts';
 import { renderScoreCard } from './score-card.ts';
@@ -314,12 +314,12 @@ function renderWhyNotGemini(): HTMLElement {
       'name; at least one such vendor concedes in its own FAQ that it does not read the ' +
       'SynthID watermark and that doing so would require private keys that are not public.',
     ]),
-    el('p', { class: 'note' }, [
+    reasoning([el('p', { class: 'note' }, [
       'The Hero panel already showed this as a measurement rather than an argument: two ' +
       'published reference implementations of the same scheme, given the same text and the ' +
       'same keys, do not read each other’s marks. Configuration is not a detail around the ' +
       'key; it is part of the key.',
-    ]),
+    ])], 'The measurement this rests on'),
   ]);
 }
 
@@ -467,9 +467,12 @@ function renderStrengthCurve(): HTMLElement {
   // the run throws. It is not given the progress line: it empties what it was given the
   // moment the work settles, and this line ends by saying the run finished.
   const start = (): Promise<void> => runGuarded(recompute, {
-    controls: [recomputeButton, resetControl],
+    controls: [recomputeButton, resetControl.node],
     region: live,
     onError: () => { progress.textContent = ''; announcer.textContent = ''; },
+    // Armed after the guard restores what it switched off, and only if the run produced a
+    // result to put back.
+    onSettled: () => { if (live.childElementCount > 0) resetControl.arm(); },
   });
 
   const reset = () => {
@@ -479,7 +482,12 @@ function renderStrengthCurve(): HTMLElement {
   };
 
   const recomputeButton = button('Recompute in this browser', () => { void start(); });
-  const resetControl = resetButton('Reset the recomputation', reset);
+  const resetControl = armableReset(
+    'Reset the recomputation',
+    'Nothing has been recomputed in this browser yet. Press Recompute in this browser '
+    + 'first; this then clears what it found.',
+    reset,
+  );
 
   return panel('How much text does it take?', [
     el('p', { class: 'note' }, [
@@ -512,7 +520,8 @@ function renderStrengthCurve(): HTMLElement {
       'above the independence prediction, the exact p-value in the score card is optimistic ' +
       'at that length.',
     ]),
-    el('div', { class: 'controls' }, [recomputeButton, resetControl]),
+    el('div', { class: 'controls' }, [recomputeButton, resetControl.node]),
+    resetControl.note,
     progress,
     announcer,
     live,

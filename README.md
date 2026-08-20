@@ -57,7 +57,7 @@ Stated plainly, because it is what the short route costs: **Demo hides most of t
 Six of the ten sections are hidden, along with three panels inside the hero — the
 wrong-key sweep, the one-bit key mutation and the cross-implementation comparison — and
 Act VII's stripping-versus-regeneration experiment. At a laptop width the short route is
-7,309 px of document against the full lab's 26,893; on a phone, 12,485 against 47,655.
+7,458 px of document against the full lab's 26,334; on a phone, 12,837 against 46,439.
 All four are `document.documentElement.scrollHeight`, read off the production build at
 1052 and 390 CSS pixels wide in headless Chromium — exact rather than rounded, because two
 of them were once rounded to fifty and printed beside two that were not, and specific to
@@ -79,6 +79,25 @@ result card, Act VI's signed falsehood and every provenance tag.
 The depth is remembered in `localStorage` under `token-tell:mode`, and a `?mode=` in the
 address outranks the stored preference, so a link handed to someone else opens at the
 depth it names rather than at whatever they last looked at.
+
+Within a panel there is a third, smaller fold: the **reasoning behind a result travels
+behind a summary**. Most panels stated a claim, showed a measurement, and then spent two
+or three paragraphs on why the measurement looks the way it does — which is what an
+unconvinced reader comes back for, and what everyone else has to scroll past to reach the
+next experiment. Twelve of those now sit behind a named summary (*Why one bit costs
+everything here*, *How these columns are computed, and why neither mean-g reads 0.500*),
+built eagerly so the text is still in the document, still searchable and still readable by
+the claims suite. Two rules keep it from becoming a way to hide the awkward half: a caveat
+never folds — anything naming what a result does not prove, what was simplified, or which
+corpus a number belongs to stays on the face of the panel — and the summary says what is
+behind it, so the closed state is enough to decide whether you need it.
+
+Where it does not pay, it is not done. The Hero's date corrections are the only foldable
+paragraph the short route shows, and behind a summary that page measured 60 px TALLER at a
+laptop width and 158 px taller on a phone — a summary row, its border and its margins cost
+about what the paragraph did — so they stay in the open, where a correction on the first
+panel a visitor meets belongs. The folding is worth 559 px of the full lab at a laptop
+width and 1,216 px on a phone.
 
 A sticky chapter control lists the beats of the current depth and marks the one on screen:
 a single row of chapters on a desktop, and below 640 px a compact selector with previous
@@ -230,7 +249,12 @@ tested, not an intention:
   scroll position the audience is looking at, which is why nothing on the page needs one.
 - **Mutation controls stay off until there is something to mutate.** Act V's flip, strip
   and re-verify controls are disabled until a manifest exists, with the reason stated
-  beside them rather than left to be inferred from a grey button.
+  beside them rather than left to be inferred from a grey button. The five resets whose
+  panels render nothing until a button is pressed follow the same rule: off until the run
+  produces something, and off again the moment they have put it back — which is what makes
+  the press perceptible when the output it cleared was below the fold. Offered enabled,
+  they answered a press by doing nothing and saying nothing, which is indistinguishable
+  from a broken control.
 - **Busy is a word, not a spinner.** Every asynchronous run marks its region `aria-busy`
   and prints what it is doing — `Signing with ECDSA P-256…`, `Scored 140 of 300 wrong
   keys.` — because a spinner is invisible to a screen reader and to a contrast oracle
@@ -334,7 +358,7 @@ pip install -r tools/requirements-transformers.txt  # capture_sampling_table.py 
 npm test              # 230 unit tests, including differential vectors from both references
 npm run verify        # the independent verifier: 112 checks, sharing no module with the lab
 npm run verify:manifest
-npm run test:a11y     # all five browser suites, 62 tests, against the production build
+npm run test:a11y     # all five browser suites, 63 tests, against the production build
 ```
 
 `npm run test:a11y` builds the site and serves the build with `vite preview` before it
@@ -342,7 +366,7 @@ starts, so what passes there is what ships. The five suites can be run one at a 
 
 ```
 npx playwright test e2e/a11y.spec.ts     # axe WCAG 2.1 A/AA plus further oracles; slow
-npx playwright test e2e/claims.spec.ts   # 21 tests that re-derive what the page says
+npx playwright test e2e/claims.spec.ts   # 22 tests that re-derive what the page says
 npx playwright test e2e/offline.spec.ts  # the precache under host rules, not preview's
 npx playwright test e2e/smoke.spec.ts    # every act mounts and computes at either depth
 npx playwright test e2e/visual.spec.ts   # 34 geometry tests at four viewports; ~80 s

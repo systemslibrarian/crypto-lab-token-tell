@@ -31,11 +31,11 @@ import { drawKeySets, empiricalTail, wrongKeyNull } from '../watermark/null-mode
 import type { NullDistribution } from '../watermark/null-model.ts';
 import { withKeys } from '../watermark/params.ts';
 import { scoreTokens } from '../watermark/score.ts';
-import { resetButton, runGuarded } from './busy.ts';
+import { armableReset, runGuarded } from './busy.ts';
 import { histogram } from './chart.ts';
 import {
   actHeader, button, clear, consequence, disclosure, el, fixed, integer, labelledRange,
-  liveRegion, nextFrame, panel, provenanceTag, readout, srOnly, verdict,
+  liveRegion, nextFrame, panel, provenanceTag, readout, reasoning, srOnly, verdict,
 } from './dom.ts';
 import { labOnly } from './mode.ts';
 import { renderResultCard } from './score-card.ts';
@@ -325,9 +325,11 @@ function renderLineage(): HTMLElement {
         'carry a mark is which word came next — which is what the detector below is ' +
         'reading, and what the key it needs is for.'),
     ]),
-    // The corrections are on the page rather than only in the sources, because the short
-    // route never paints the reference section and a date repeated from a potted history
-    // is exactly the kind of claim this lab exists to distrust.
+    // Not folded, and measured rather than assumed: this is the one panel on the short
+    // route with anything foldable in it, and behind a summary the demo page came out 60 px
+    // TALLER at a laptop width and 158 px taller on a phone — a summary row, its border and
+    // its margins cost about what the paragraph did. So the fold bought nothing here and
+    // would have put a correction behind a click on the first panel a visitor meets.
     el('p', { class: 'note' }, [
       'Both of those come from the sources rather than from the version that circulates ' +
       'with them. The first watermarks are usually dated 1282; that is Briquet’s own ' +
@@ -679,12 +681,12 @@ function renderKeySweep(): HTMLElement {
         fixed(Math.sqrt(0.25 / (scoredPositions * watermarkParams.keys.length)), 5)],
     ], 'Wrong-key sweep statistics'));
 
-    output.append(el('p', { class: 'note' }, [
+    output.append(reasoning([el('p', { class: 'note' }, [
       'The last two rows are the check the page is really making. The paper argues that ' +
       'repeated-context masking leaves the counted g-values independent, which fixes the ' +
       'spread at the predicted value. The measured spread is right there beside it. They ' +
       'are not asserted to agree.',
-    ]));
+    ])], 'What the last two rows are for'));
 
     chartHost.append(
       // The figure states counts and a range; what it is for belongs above it, where a
@@ -705,26 +707,37 @@ function renderKeySweep(): HTMLElement {
 
   const runButton = button('Run the sweep', () => {
     void runGuarded(sweep, {
-      controls: [runButton, input, reset],
+      controls: [runButton, input, reset.node],
       region: output,
       onError: () => { progress.textContent = 'The sweep did not finish.'; },
+      // Armed after the guard has restored what it switched off, and only if the run left
+      // something behind: `runGuarded` puts every control back to the disabled state it
+      // found, so a control armed inside the run would be switched off again on the way
+      // out.
+      onSettled: () => { if (chartHost.childElementCount > 0) reset.arm(); },
     });
   }, true);
 
-  const reset = resetButton('Reset the sweep', () => {
-    clear(output);
-    clear(chartHost);
-    progress.textContent = '';
-    input.value = '100';
-    sizeOutput.textContent = '100';
-  });
+  const reset = armableReset(
+    'Reset the sweep',
+    'There is no sweep to reset yet. Run the sweep first; this then puts the panel back '
+    + 'to the draw it ships with.',
+    () => {
+      clear(output);
+      clear(chartHost);
+      progress.textContent = '';
+      input.value = '100';
+      sizeOutput.textContent = '100';
+    },
+  );
 
   return panel('Not one wrong key — many', [
     el('p', { class: 'note' }, [
       'Do not take one wrong key on trust. Score the identical bytes under a whole ' +
       'population of random keys and see where the configured key falls in it.',
     ]),
-    el('div', { class: 'controls' }, [field, runButton, reset]),
+    el('div', { class: 'controls' }, [field, runButton, reset.node]),
+    reset.note,
     progress,
     output,
     chartHost,
@@ -759,7 +772,7 @@ function renderOneBit(): HTMLElement {
       ['Score, one bit flipped', fixed(flipped.score)],
       ['Evidence remaining', `${fixed(((flipped.score ?? 0.5) - 0.5) / ((correct.score ?? 0.5) - 0.5) * 100, 1)}%`],
     ], 'One-bit key mutation'),
-    el('p', { class: 'note' }, [
+    reasoning([el('p', { class: 'note' }, [
       'A thirtieth of the key material changed, and effectively none of the evidence ' +
       'survived. That is a property of this construction rather than of watermarking in ' +
       'general: the reference implementation hashes the whole key list with SHA-256 into ' +
@@ -767,7 +780,7 @@ function renderOneBit(): HTMLElement {
       'changes every g-value at every layer. The transformers implementation, which seeds ' +
       'its chain with the literal 1 and folds each key in only at its own layer, loses ' +
       'roughly one layer of evidence instead.',
-    ]),
+    ])], 'Why one bit costs everything here'),
   ], provenanceTag('reference', 'synthid-text @ addb4a1'));
 }
 
@@ -797,12 +810,12 @@ function renderCrossImplementation(): HTMLElement {
       [`Score · ${transformersConstruction.label}`, fixed(other.score)],
       ['Scored positions', integer(mine.scoredPositions)],
     ], 'Cross-implementation comparison'),
-    el('p', { class: 'note' }, [
+    reasoning([el('p', { class: 'note' }, [
       'Neither implementation is broken. The official repository derives g-values by ' +
       're-hashing and reading a bit; transformers indexes a pinned table of random bits, ' +
       'and seeds its chain differently. "The watermark configuration" therefore means more ' +
       'than the key: it includes which construction produced the mark. This is the whole ' +
       'of Act VII in one table, and it is measured rather than argued.',
-    ]),
+    ])], 'Why two faithful implementations disagree'),
   ], provenanceTag('reference', 'two implementations'));
 }

@@ -590,11 +590,11 @@ export async function auditContrast(
       // not `display: none`, and Chromium keeps the last laid-out geometry for
       // that subtree — so the `display`/rect tests above all pass for text
       // that paints nothing. `checkVisibility()` catches it. This page ships
-      // two closed <details>, one per pinned transformation in Act IV
-      // (`act4-attacks.ts:246`, driven by the two entries in
-      // `src/data/pinned/attacks.json`), and each holds a provenance readout,
-      // two headings and two full-text scrollers — several hundred characters
-      // apiece that lay out and then paint nothing. The
+      // eighteen of them at arrival: two per pinned transformation in Act IV
+      // (`act4-attacks.ts`, driven by the entries in
+      // `src/data/pinned/attacks.json`), the Hero's calculation trails, and the
+      // folded reasoning most panels now carry — thousands of characters that
+      // lay out and then paint nothing. The
       // gate opens them by clicking their <summary>, which is the route a
       // reader has, rather than setting `.open` from script — which is what
       // the gate this replaces did, to every <details> on the page, before its

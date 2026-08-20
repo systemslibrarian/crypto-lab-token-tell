@@ -41,7 +41,7 @@ import type { BracketResult } from '../watermark/tournament.ts';
 import { resetButton } from './busy.ts';
 import {
   actHeader, button, clear, consequence, el, fixed, integer, labelledRange, labelledSelect,
-  panel, provenanceTag, readout, scroller,
+  panel, provenanceTag, readout, reasoning, scroller,
 } from './dom.ts';
 import { param, setParam } from './mode.ts';
 
@@ -380,12 +380,12 @@ function renderAggregatedView(
       'proves the two are the same distribution and states that its own experiments use ' +
       'the vectorized form.',
     ]),
-    el('p', { class: 'note' }, [
+    reasoning([el('p', { class: 'note' }, [
       'What is summarised below is per layer: how many survivors the conceptual bracket ' +
       'would have at that point, the g-mass the layer is working against, and where the ' +
       'reweighted distribution has moved. Nothing about the individual matches is shown, ' +
       'because nothing about them was computed.',
-    ]),
+    ])], 'What the per-layer table shows'),
     scroller('Per-layer summary', [
       el('table', {}, [
         el('thead', {}, [el('tr', {}, [
@@ -423,12 +423,12 @@ function renderDistributionShift(
 
   return el('div', {}, [
     el('h3', { text: 'What the key moved' }),
-    el('p', { class: 'note' }, [
+    reasoning([el('p', { class: 'note' }, [
       'Three things stay distinct on this page and this table is where they meet: the raw ' +
       'model logits, the sampling distribution after temperature and top-k, and the keyed ' +
       'selection applied on top of it. The "before" column is the second of those, not the ' +
       'first.',
-    ]),
+    ])], 'Which distribution "before" means'),
     scroller('Largest probability changes', [
       el('table', {}, [
         el('thead', {}, [el('tr', {}, [
