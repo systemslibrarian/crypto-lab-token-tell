@@ -27,11 +27,11 @@ export const LAB = {
 export const EXTRACTION = {
   // Filled by the commit that pins this tree; see verification/README.md for why this is
   // a two-commit dance rather than a self-reference.
-  commit_sha: 'beeec8751e25d44ca15b293c0163a14eb1207857',
+  commit_sha: 'cc99a1853039224878b6732d4262c37361b7a6ee',
   extraction: {
     pass: 'B',
     model: 'claude-opus-5[1m]',
-    date: '2026-08-19',
+    date: '2026-08-20',
   },
 };
 
