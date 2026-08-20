@@ -61,6 +61,7 @@ export const MATH_CORE = [
   'src/c2pa/validate.ts',
   'src/tokenizer/byte-level.ts',
   'src/tokenizer/gpt2.ts',
+  'src/watermark/aggregate.ts',
   'src/watermark/constructions.ts',
   'src/watermark/entropy.ts',
   'src/watermark/frequentist.ts',
@@ -131,6 +132,26 @@ export const REFERENCE_PACK = [
     version: '2.4 (April 2026), accessed 2026-08-19',
     source_url: 'https://spec.c2pa.org/specifications/specifications/2.4/specs/C2PA_Specification.html',
     section: 'Manifests; claim signature; hard bindings',
+    excerpt_sha256: '',
+    supplied_by: 'human',
+  },
+  {
+    id: 'WILSON',
+    type: 'paper',
+    title: 'Wilson, E. B. "Probable Inference, the Law of Succession, and Statistical Inference"',
+    version: 'Journal of the American Statistical Association 22(158):209-212 (1927)',
+    source_url: 'https://doi.org/10.1080/01621459.1927.10502953',
+    section: 'the score interval for a binomial proportion',
+    excerpt_sha256: '',
+    supplied_by: 'human',
+  },
+  {
+    id: 'ROGANGLADEN',
+    type: 'paper',
+    title: 'Rogan, W. J., Gladen, B. "Estimating prevalence from the results of a screening test"',
+    version: 'American Journal of Epidemiology 107(1):71-76 (1978)',
+    source_url: 'https://doi.org/10.1093/oxfordjournals.aje.a112510',
+    section: 'the prevalence correction for a test of known sensitivity and specificity',
     excerpt_sha256: '',
     supplied_by: 'human',
   },
@@ -220,6 +241,145 @@ export const PARAMETERS = [
 const anchor = (ref, location) => ({ ref, location });
 
 export const CLAIMS = [
+  {
+    key: 'wilson-interval',
+    file: 'src/watermark/aggregate.ts',
+    symbol: 'wilsonInterval',
+    type: 'distribution',
+    statement:
+      'The reported interval for an observed proportion should be the pair of values p '
+      + 'satisfying |p_hat - p| = z*sqrt(p(1-p)/n), rather than p_hat plus or minus the '
+      + 'standard error evaluated at p_hat.',
+    latex:
+      'p_{\\pm} = \\frac{\\hat p + \\frac{z^2}{2n} \\pm z\\sqrt{\\frac{\\hat p(1-\\hat p)}{n} '
+      + '+ \\frac{z^2}{4n^2}}}{1 + \\frac{z^2}{n}}',
+    snippet: 'export function wilsonInterval(successes: number, trials: number, z: number = Z_95): Interval {',
+    computable: {
+      language: 'python',
+      relation: 'equality',
+      expression:
+        '(lambda z, p, n: ((p + z*z/(2*n)) + (z/1)*__import__("math").sqrt(p*(1-p)/n + '
+        + 'z*z/(4*n*n)))/(1 + z*z/n))(1.959963984540054, 0.5, 10)',
+      inputs: {},
+      expected: 0.7634069094874361,
+      dependencies: [],
+    },
+    reference_anchor: anchor('WILSON', 'the score interval, as against the normal approximation'),
+    verification: {
+      method: 'algebraic',
+      implementation: 'the defining equation evaluated at both returned endpoints',
+      vector_source: 'none required',
+      procedure:
+        'For several counts, substitute each endpoint back into |p_hat - p| = '
+        + 'z*sqrt(p(1-p)/n) and check the residual is zero to double precision; compare '
+        + 'two small cases against published values.',
+      expected_observation: 'the residuals vanish and the published endpoints are reproduced',
+    },
+    implementation_provenance: {
+      kind: 'custom', component: 'binomial score interval', package: '', version: '',
+      boundary: 'closed form, clamped to [0, 1]',
+    },
+    extractor_confidence: 'high',
+    extraction_status: 'anchored',
+    verification_status: 'independently_tested',
+    conformance_status: 'not_applicable',
+    notes:
+      'Outside the watermarking literature: it is the interval Act VIII puts on a count '
+      + 'of flagged documents before the count is corrected. Nothing in the detection path '
+      + 'depends on it.',
+  },
+  {
+    key: 'operating-point',
+    file: 'src/watermark/aggregate.ts',
+    symbol: 'operatingPoint',
+    type: 'arithmetic',
+    statement:
+      'The threshold should be the floor(f*n)-th largest unmarked calibration score, and '
+      + 'the two rates reported beside it should be the measured fractions of each class at '
+      + 'or above that threshold rather than the rate requested.',
+    snippet: '  const threshold = allowed >= 1 ? descending[allowed - 1] : descending[0];',
+    computable: {
+      language: 'python',
+      relation: 'equality',
+      expression:
+        'sorted([0.5 + i * 0.001 for i in range(20)], reverse=True)[int(0.1 * 20) - 1]',
+      inputs: {},
+      expected: 0.518,
+      dependencies: [],
+    },
+    reference_anchor: anchor('ROGANGLADEN', 'sensitivity and specificity as measured quantities'),
+    verification: {
+      method: 'metamorphic',
+      implementation: 'constructed score sets with known order and with ties',
+      vector_source: 'none required',
+      procedure:
+        'Place a threshold on evenly spaced scores and count exceedances; repeat with every '
+        + 'unmarked score identical, where no threshold can achieve the requested rate.',
+      expected_observation:
+        'the exceedance count equals floor(f*n) when the scores are distinct, and the '
+        + 'reported rate departs from the requested one when they are tied',
+    },
+    implementation_provenance: {
+      kind: 'custom', component: 'operating point', package: '', version: '',
+      boundary: 'empirical quantile over a calibration set held out by source text',
+    },
+    extractor_confidence: 'high',
+    extraction_status: 'anchored',
+    verification_status: 'independently_tested',
+    conformance_status: 'not_applicable',
+    notes:
+      'No primary source supplies a numeric threshold for this construction, here or '
+      + 'anywhere else on the page. This one is placed on 128 unmarked documents and its '
+      + 'realised rates are printed beside it, including on documents it never saw.',
+  },
+  {
+    key: 'prevalence-correction',
+    file: 'src/watermark/aggregate.ts',
+    symbol: 'estimateMarkedFraction',
+    type: 'arithmetic',
+    statement:
+      'The estimated marked fraction should equal the observed positive rate less the '
+      + 'false-positive rate, divided by the difference between the true-positive and '
+      + 'false-positive rates.',
+    latex: '\\hat\\pi = \\frac{p - \\mathrm{FPR}}{\\mathrm{TPR} - \\mathrm{FPR}}',
+    snippet: '  const correct = (rate: number): number => (rate - point.falsePositiveRate) / separation;',
+    computable: {
+      language: 'python',
+      relation: 'equality',
+      expression: '(0.23 - 0.05) / (0.65 - 0.05)',
+      inputs: {},
+      expected: 0.3,
+      dependencies: [],
+    },
+    reference_anchor: anchor('ROGANGLADEN', 'the prevalence estimator'),
+    verification: {
+      method: 'metamorphic',
+      implementation: 'a corpus of known composition flagged at exactly the declared rates',
+      vector_source: 'src/data/pinned/null-corpus.json for the live run; constructed counts for the unit suite',
+      procedure:
+        'Build a count from a known marked fraction, the true-positive rate and the '
+        + 'false-positive rate, hand the estimator only the total, and compare what it '
+        + 'returns with the fraction the count was built from; repeat with rates that do '
+        + 'not separate.',
+      expected_observation:
+        'the composition is recovered exactly, and a non-separating pair of rates returns '
+        + 'no estimate rather than a large one',
+    },
+    implementation_provenance: {
+      kind: 'adapted', component: 'prevalence correction', package: '', version: '',
+      boundary: 'screening-test arithmetic applied to a watermark detector',
+    },
+    extractor_confidence: 'high',
+    extraction_status: 'anchored',
+    verification_status: 'independently_tested',
+    conformance_status: 'not_applicable',
+    notes:
+      'The estimate is a statement about a corpus and never about a document. Its interval '
+      + 'carries the sampling error in the corpus alone: the two rates are themselves '
+      + 'estimates from a finite calibration set, and the documents are cut eight to a '
+      + 'source text, so they are not independent. Both limits are stated in the act and in '
+      + 'the limitations list.',
+  },
   {
     key: 'lcg-step',
     file: 'src/watermark/hash.ts',

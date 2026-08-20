@@ -13,8 +13,8 @@
  * still in the tab order is a worse failure than no control at all.
  *
  * The list follows the depth: in Demo mode it names the five beats of the short route, in
- * Full lab all nine acts. Chapters whose target is not in the document are dropped rather
- * than rendered as links into nothing.
+ * Full lab all ten sections. Chapters whose target is not in the document are dropped
+ * rather than rendered as links into nothing.
  *
  * The mark follows the reader rather than the other way round, and the address bar follows
  * the mark: the section on screen is written back into the URL as it changes, so the link
@@ -33,9 +33,10 @@ interface Chapter {
  * Short labels, and the same noun phrase the act's own kicker uses. Two reasons, and they
  * are the same reason twice: nine long names measured 1,474 px against a 1,168 px strip at
  * the widest desktop, so the last two were off screen and the one before them was cut mid
- * word; and a chip that says one thing while the heading it lands on says another makes
- * the reader check whether they arrived, which on a phone is a 19 px journey between the
- * two labels. Neither is fixed by scrolling the strip further.
+ * word, and there are ten names now rather than nine; and a chip that says one thing while
+ * the heading it lands on says another makes the reader check whether they arrived, which
+ * on a phone is a 19 px journey between the two labels. Neither is fixed by scrolling the
+ * strip further.
  */
 const LAB_CHAPTERS: readonly Chapter[] = [
   { id: 'hero-experiment', label: 'The proof' },
@@ -46,6 +47,7 @@ const LAB_CHAPTERS: readonly Chapter[] = [
   { id: 'act-5', label: 'V · Sign it' },
   { id: 'act-6', label: 'VI · Sign a lie' },
   { id: 'act-7', label: 'VII · What each proves' },
+  { id: 'act-8', label: 'VIII · Measure a population' },
   { id: 'reference', label: 'Reference' },
 ];
 

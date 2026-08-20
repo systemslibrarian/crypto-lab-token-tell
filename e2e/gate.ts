@@ -33,7 +33,7 @@ export const NARROW = { width: 380, height: 800 };
  *     `[hidden]` attribute and set every `<details>.open` by JS before its only
  *     scan — a rendering no reader can reach, scanned instead of the real one,
  *     and the SHUT state that every reader arrives at never scanned at all.
- *     This lab now DOES ship `[hidden]` panels: Demo depth hides twenty-one
+ *     This lab now DOES ship `[hidden]` panels: Demo depth hides twenty-four
  *     lab-only elements and Full lab hides three demo-only ones, so the
  *     temptation is stronger here than it was there and the answer is the same.
  *     Depth is changed through the `?mode=` a presenter really links to or
@@ -262,7 +262,7 @@ const DEPTH_STORAGE_KEY = 'token-tell:mode';
 
 const SECTIONS = [
   'hero-experiment', 'act-1', 'act-2', 'act-3', 'act-4', 'act-5', 'act-6', 'act-7',
-  'reference',
+  'act-8', 'reference',
 ] as const;
 
 /** The four sections the short route shows. Their complement is what Full lab adds. */
@@ -477,9 +477,9 @@ export async function boot(
   await expect(page.locator('#act-5 details')).toHaveCount(1);
   await expect(page.locator('#act-6 details')).toHaveCount(1);
   await expect(page.locator('#act-7 details')).toHaveCount(1);
-  // Act VII's ten row explanations are `aria-expanded` triggers over rows that
+  // Act VII's eleven row explanations are `aria-expanded` triggers over rows that
   // are `hidden`, not `<details>`, so they are counted in their own shape.
-  await expect(page.locator('#act-7 .compare-table button[aria-expanded]')).toHaveCount(10);
+  await expect(page.locator('#act-7 .compare-table button[aria-expanded]')).toHaveCount(11);
   await expect(page.locator('#act-7 .compare-table button[aria-expanded="true"]')).toHaveCount(0);
 
   // ── The depth this boot asked for is the depth the page is in ───────────
@@ -874,7 +874,7 @@ type ScanAt = (state: string) => Promise<void>;
  * Eight things shape this drive:
  *
  *  - BOTH DEPTHS, IN ONE PASS, whichever one `boot` was handed. Demo hides
- *    twenty-one lab-only elements and Full lab hides three demo-only ones, and
+ *    twenty-four lab-only elements and Full lab hides three demo-only ones, and
  *    every oracle here goes blind on a `hidden` subtree — see rule 2b at the
  *    top of this file. A depth that is never driven is a depth that is never
  *    checked, and it would report as a clean run. The depth is changed through
@@ -895,7 +895,7 @@ type ScanAt = (state: string) => Promise<void>;
  *    fails here rather than in front of an audience.
  *
  *  - EVERY PANEL THAT COMPUTES ON DEMAND IS MADE TO COMPUTE. The wrong-key
- *    sweep, the attack sweep, the corpus scoring, the browser recomputation and
+ *    sweep, the attack sweep, both corpus runs, the browser recomputation and
  *    Act II's pipeline breakdown all render nothing until something is pressed,
  *    so an unpressed control is a region that never existed to be scanned.
  *
@@ -1360,6 +1360,30 @@ async function driveLab(page: Page, scanAt: ScanAt): Promise<void> {
   await expect(page.locator('#act-7 .compare-table button[aria-expanded="true"]'))
     .toHaveCount(1);
   await scanAt('Act VII: the load-bearing question explained inline');
+
+  // ── Act VIII: the population estimate, and the corpus re-mixed ──────────
+  // This act paints nothing at all until the run: 768 documents are scored in
+  // the browser, and everything below the controls — the headline, three
+  // readouts, the convergence chart and its table — is built from that one
+  // result. An undriven Act VIII is not a shut region but an absent one.
+  const act8 = page.locator('#act-8');
+  await act8.getByRole('button', { name: 'Score the corpus and estimate' }).click();
+  await expect(act8.locator('.progress')).toContainText('Done.');
+  await expect(act8.locator('.act-headline-figure')).not.toBeEmpty();
+  await expect(act8.locator('figure')).toHaveCount(1);
+  await scanAt('Act VIII: the corpus scored, the marked fraction estimated with its interval');
+
+  // Changing the mixture re-mixes documents already scored rather than scoring a
+  // second pile, so this is a second rendering reached by moving one control —
+  // and the readout is the completion signal, because there is no run to wait on.
+  await page.locator('#act8-mixture').selectOption('0.10');
+  await expect(act8.locator('.readout').first()).toContainText('10.0%');
+  await scanAt('Act VIII: the same documents re-mixed at a tenth marked');
+
+  await act8.getByRole('button', { name: 'Reset the estimate' }).click();
+  await expect(act8.locator('.act-headline')).toHaveCount(0);
+  await expect(page.locator('#act8-mixture')).toHaveValue('0.30');
+  await scanAt('Act VIII: the estimate reset, back to the panel a reader arrives at');
 
   await driveChapters(page, scanAt, 'lab');
 

@@ -12,7 +12,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
  * several of these re-derive from committed reference values that came out of Python.
  *
  * The page now has two depths, and every test says which one it opens. That is not
- * bookkeeping: Demo hides twenty-one lab-only elements and Full lab hides three demo-only
+ * bookkeeping: Demo hides twenty-four lab-only elements and Full lab hides three demo-only
  * ones, and while `textContent`, counts and `value` all read straight through `hidden`,
  * anything that clicks, fills or asserts visibility does not. Where a claim is about what
  * a reader is shown, the test opens the depth that shows it; where a claim is about two
@@ -389,11 +389,11 @@ test('a plainly false statement verifies, and the page says what that means',
         : 'integrity failed; truth remained unanswered either way.');
   });
 
-test('the comparison table carries all ten rows and marks the load-bearing one',
+test('the comparison table carries all eleven rows and marks the load-bearing one',
   async ({ page }) => {
     await page.goto(LAB);
     const rows = page.locator('#act-7 .compare-table tbody tr th[scope="row"]');
-    await expect(rows).toHaveCount(10);
+    await expect(rows).toHaveCount(11);
     // The question is now the disclosure trigger and carries a chevron beside it, so the
     // question itself is read rather than the whole cell. The row position is asserted on
     // purpose: the panel's own note says "the second row is the load-bearing one", and
@@ -404,7 +404,7 @@ test('the comparison table carries all ten rows and marks the load-bearing one',
       .toHaveText('WHO CAN VERIFY?');
   });
 
-test('the compact comparison agrees, row for row, with the ten-row table it summarises',
+test('the compact comparison agrees, row for row, with the eleven-row table it summarises',
   async ({ page }) => {
     // Opened at Demo depth, where the compact cards are what a reader is shown; the full
     // table is hidden here, and read through `hidden` on purpose — the claim is that the
@@ -436,7 +436,7 @@ test('the compact comparison agrees, row for row, with the ten-row table it summ
     });
 
     expect(cards.length, 'the short route asks four questions').toBe(4);
-    expect(rows.length, 'the audit table asks ten').toBe(10);
+    expect(rows.length, 'the audit table asks eleven').toBe(11);
     // The load-bearing question leads the short route, exactly as it is marked in the
     // table: it is the row the rest of the comparison follows from, so it is the one a
     // ninety-second reading has to reach first.
@@ -445,7 +445,7 @@ test('the compact comparison agrees, row for row, with the ten-row table it summ
 
     for (const card of cards) {
       const row = rows.find((candidate) => candidate.question === card.question);
-      expect(row, `"${card.question}" is one of the ten audit questions`).toBeDefined();
+      expect(row, `"${card.question}" is one of the eleven audit questions`).toBeDefined();
       expect(card.answers.length, `${card.question}: three mechanisms`).toBe(3);
       expect(row?.answers.length, `${card.question}: three mechanisms in the table`).toBe(3);
       expect(card.answers, `${card.question}: the same answers, in the same order, with the `
@@ -493,6 +493,94 @@ test('stripping and regeneration are shown as different failures', async ({ page
     survived
       ? 'enough keyed choices survived to clear the threshold.'
       : 'the evidence went with the words that carried it.');
+});
+
+/**
+ * Act VIII's estimate is re-derived here from the page's own printed inputs, by a route
+ * the act does not take: the correction is applied in this file, in percentage points, to
+ * the flagged count and the two calibration rates the page printed — not to the internal
+ * numbers behind them. A rounding-only agreement would still be an agreement, so the
+ * bookkeeping is checked as well, and both are what a wrong estimator would have to
+ * defeat at once.
+ */
+test('the population estimate is what its own printed inputs imply', async ({ page }) => {
+  await page.goto(LAB);
+  const act8 = page.locator('#act-8');
+  await act8.getByRole('button', { name: 'Score the corpus and estimate' }).click();
+  await expect(act8.locator('.progress')).toContainText('Done.');
+
+  const percent = async (scope: Locator, term: string): Promise<number> =>
+    Number.parseFloat((await readout(scope, term)).replace('%', ''));
+
+  const estimatePanel = act8.locator('.readout').first();
+  const calibration = act8.locator('.panel')
+    .filter({ has: page.locator('.panel-title', { hasText: 'calibrated' }) });
+  const singles = act8.locator('.panel')
+    .filter({ has: page.locator('.panel-title', { hasText: 'one document at a time' }) });
+
+  const documents = Number(await readout(estimatePanel, 'Documents in the corpus'));
+  const flagged = Number(await readout(estimatePanel, 'Documents flagged'));
+  const rate = await percent(estimatePanel, 'Flagged fraction, uncorrected');
+  const estimate = await percent(estimatePanel, 'Estimated marked fraction');
+  const fpr = await percent(calibration, 'False-positive rate, calibration');
+  const tpr = await percent(calibration, 'True-positive rate, calibration');
+
+  // The uncorrected rate is the count over the corpus, and the estimate is that rate
+  // inverted through the two rates.
+  expect((100 * flagged) / documents).toBeCloseTo(rate, 1);
+  // Every input to that inversion is printed to a tenth of a point, and the correction
+  // divides by the separation between the rates, so half a tenth on each arrives
+  // magnified by its reciprocal. The tolerance is derived from the figures on screen
+  // rather than guessed at: at the separation this detector has it is about a quarter of
+  // a point, and an estimator that was actually wrong would miss by more than the page's
+  // own rounding can explain.
+  const tick = 0.05;
+  const separation = (tpr - fpr) / 100;
+  const tolerance = (2 * tick) / separation + (estimate * 2 * tick) / (tpr - fpr) + tick;
+  expect(Math.abs((rate - fpr) / separation - estimate)).toBeLessThan(tolerance);
+
+  // The interval brackets the estimate, and the page's own yes/no about the fraction the
+  // corpus was built at agrees with the interval it printed beside it.
+  const held = await percent(estimatePanel, 'Marked fraction, held out');
+  const [low, high] = (await readout(estimatePanel, '95% interval'))
+    .split(' to ').map((half) => Number.parseFloat(half));
+  expect(low).toBeLessThanOrEqual(estimate);
+  expect(high).toBeGreaterThanOrEqual(estimate);
+  expect(await readout(estimatePanel, 'True fraction inside the interval'))
+    .toBe(held >= low && held <= high ? 'yes' : 'no');
+
+  // The same flags, counted the other way: the two classes have to add up to the corpus
+  // and to the flagged count the estimate was computed from.
+  const markedDocuments = Number(await readout(singles, 'Marked documents in the corpus'));
+  const unmarkedDocuments = Number(await readout(singles, 'Unmarked documents in the corpus'));
+  const flaggedMarked = Number(await readout(singles, 'Marked documents flagged'));
+  const flaggedUnmarked = Number(await readout(singles, 'Unmarked documents flagged'));
+  expect(markedDocuments + unmarkedDocuments).toBe(documents);
+  expect(flaggedMarked + flaggedUnmarked).toBe(flagged);
+  expect(markedDocuments).toBe(Math.round((held / 100) * documents));
+  expect(await percent(singles, 'Of the flagged documents, share actually marked'))
+    .toBeCloseTo((100 * flaggedMarked) / flagged, 1);
+
+  // The claim the act is built on: the interval closes as documents are added, and the
+  // last row of the ladder is the corpus the readouts above describe.
+  const ladder = await act8.locator('tbody tr').evaluateAll((rows) => rows.map((row) =>
+    [...row.children].map((cell) => (cell.textContent ?? '').trim())));
+  expect(ladder.length).toBeGreaterThan(4);
+  const halfWidths = ladder.map((row) => Number.parseFloat(row[row.length - 1]));
+  for (let index = 1; index < halfWidths.length; index += 1) {
+    expect(halfWidths[index], `corpus ${ladder[index][0]} must not widen on ` +
+      `corpus ${ladder[index - 1][0]}`).toBeLessThan(halfWidths[index - 1]);
+  }
+  expect(Number(ladder[ladder.length - 1][0])).toBe(documents);
+  expect(Number(ladder[ladder.length - 1][1])).toBe(flagged);
+
+  // And the mixture is held out of the estimate rather than fed to it: a different corpus
+  // built from the same scored documents moves the answer, and moves it towards the
+  // fraction it was built at.
+  await page.locator('#act8-mixture').selectOption('0.50');
+  await expect(estimatePanel).toContainText('50.0%');
+  const richer = await percent(estimatePanel, 'Estimated marked fraction');
+  expect(richer).toBeGreaterThan(estimate);
 });
 
 test('the social preview prints the three scores this page computes', async ({ page }) => {
@@ -582,7 +670,7 @@ test('no element is hidden by the cascade while the code believes it is hidden',
     // The [hidden] cascade trap: a class rule setting `display` outranks the UA's
     // [hidden] rule, so an element paints while the code thinks it is gone. The depth
     // mechanism rests entirely on this, and it is checked at both depths because each one
-    // hides a different set: twenty-one lab-only elements in Demo, three demo-only ones
+    // hides a different set: twenty-four lab-only elements in Demo, three demo-only ones
     // in Full lab, on classes the stylesheet gives an explicit display to.
     const painted = async (): Promise<string[]> => page.evaluate(() =>
       [...document.querySelectorAll('[hidden]')]

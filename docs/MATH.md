@@ -151,6 +151,49 @@ scoring function (Supplementary A.4), trained on labelled watermarked and unwate
 data. Both implementations ship one. This lab implements the mean, because it is the one a
 reader can follow end to end, and it says so wherever it prints a number.
 
+### 3a. The population estimate (Act VIII)
+
+Everything above decides about one text. Act VIII decides about none, and estimates a
+fraction instead. Two pieces of arithmetic, both from outside the watermarking literature
+and both cited on the page:
+
+**Rogan & Gladen (1978)**, *Estimating prevalence from the results of a screening test*,
+Am. J. Epidemiol. 107(1):71–76, doi:10.1093/oxfordjournals.aje.a112510. If a corpus is a
+fraction π marked, and the detector flags marked documents at rate TPR and unmarked ones
+at rate FPR, the observed positive rate is
+
+    p = π · TPR + (1 − π) · FPR   ⟹   π̂ = (p − FPR) / (TPR − FPR)
+
+The denominator is the detector's whole worth as an instrument: a detector whose two rates
+coincide measures nothing at any corpus size, and `src/watermark/aggregate.ts` returns no
+estimate in that case rather than a large number.
+
+**Wilson (1927)**, *Probable Inference, the Law of Succession, and Statistical Inference*,
+JASA 22(158):209–212, doi:10.1080/01621459.1927.10502953. The interval on the flagged
+count, before that inversion, is the score interval — the pair of p satisfying
+|p̂ − p| = z√(p(1−p)/n) — rather than p̂ ± z√(p̂(1−p̂)/n). At these counts the difference
+matters: the normal interval at zero flags is the single point 0, which is certainty
+claimed from a sample that saw nothing.
+
+**How the operating point is obtained.** The 48 marked and 48 unmarked pinned texts are
+cut into eight 40-token documents each. The first 16 texts of each class calibrate: the
+threshold is the ⌊0.05 n⌋-th largest unmarked calibration score, and both rates are then
+*measured* at it rather than assumed equal to the rate requested. The remaining 32 texts
+of each class are the measurement pool, so no measured document shares a generation with a
+calibrating one, and the page also prints both rates as realised on those held-out
+documents — the gap between the two pairs is error no interval over the corpus can see.
+
+**What the interval covers.** Sampling error in a corpus of that size, and nothing else.
+Not the error in TPR and FPR, which are estimates from 128 documents each. Not the
+correlation between eight documents cut from one generation. Not a population unlike this
+one: point a calibrated detector at different text and the rates it was calibrated with
+are the wrong rates. All three limits are stated in the act and in the limitations list.
+
+**What it is not.** It is not a verdict on any document, and the correction works
+precisely because it never has to decide which documents are marked. The page prints the
+individual verdicts beside the estimate, counted on the same documents at the same moment,
+so the two claims can be compared rather than conflated.
+
 ---
 
 ## 4. Measured results, and what they are results about
@@ -169,6 +212,11 @@ other. They were produced by `tools/` and are committed under `src/data/pinned/`
   but leaves it above the threshold. Paraphrase (a T5 paraphraser, sentence by sentence)
   takes it to the null. Both transformations are committed with the exact models,
   revisions and parameters that produced them.
+- At a threshold placed for a 5% false-positive rate on 40-token documents, the detector
+  flags roughly two-thirds of marked documents — weak enough that a single verdict decides
+  little — while the corpus-level estimate over 256 documents lands within a point or two
+  of the fraction the corpus was built at, with a 95% interval a few points wide. Both
+  halves are computed in the browser from the same flags.
 - The measured spread of the empirical null runs slightly above the independence
   prediction at short lengths and matches it at long ones. With 48 samples the standard
   deviation itself carries about 10% relative error, so this is suggestive, not settled —

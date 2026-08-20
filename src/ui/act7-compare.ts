@@ -9,7 +9,7 @@
  * comparison is arranged so that neither column wins.
  *
  * Two depths, one set of claims. The short route needs four questions and an audit needs
- * ten, so the four are selected out of the same `ROWS` table by id rather than restated
+ * eleven, so the four are selected out of the same `ROWS` table by id rather than restated
  * beside it. A second copy of "who can verify" would be a second thing to keep true, and
  * the copy that is not under test is always the one that drifts.
  *
@@ -126,6 +126,27 @@ const ROWS: ComparisonRow[] = [
       'Every watermark verdict on this page carries a threshold and a false-positive rate ' +
       'because it has to. The signature verdicts carry neither, because there is nothing ' +
       'to tune: the bytes either verify or they do not.',
+  },
+  {
+    id: 'evidence-polarity',
+    question: 'Does the evidence support the holder’s claim to the content?',
+    watermark: { text: 'no — it qualifies the holder’s claim to the words', tone: 'no' },
+    signature: { text: 'yes — asserting origin is what signing is for', tone: 'yes' },
+    c2pa: { text: 'yes — the manifest asserts on the holder’s behalf', tone: 'yes' },
+    detail:
+      'A watermark in paper and a signature on a document run in the same direction: the ' +
+      'party who wants to be believed puts the mark there and points at it. The mark in ' +
+      'this text runs the other way. The issuer applies it rather than the holder, nobody ' +
+      'asked the holder, and it is read to qualify their claim to the words rather than to ' +
+      'support it — the same construction a mill once used to advertise its paper, pointed ' +
+      'at the person handing you the page. That is not a defect in it; it is what it is ' +
+      'for. But it decides whose tool each mechanism is, which is a different question ' +
+      'from how well any of them works. Read it beside the row above: a statistical answer ' +
+      'running against its subject is a different object from a binary one running for ' +
+      'them, and either can be true without the other. Evidence pointed at its holder also ' +
+      'has the second-order effect Chesney and Citron call the liar’s dividend: as an ' +
+      'audience learns a test exists, denial gets cheaper, and a missing mark starts being ' +
+      'read as exoneration. This statistic supports neither that reading nor its opposite.',
   },
   {
     id: 'survives-stripping',
@@ -377,7 +398,7 @@ function renderCompactComparison(): HTMLElement {
 }
 
 /* ---------------------------------------------------------------------------------------
-   The full comparison: ten questions, and one mechanism column at a time on a phone.
+   The full comparison: eleven questions, and one mechanism column at a time on a phone.
    --------------------------------------------------------------------------------------- */
 
 interface FocusState {
@@ -563,7 +584,7 @@ function renderComparison(): HTMLElement {
   control.paint();
   build();
 
-  return panel('Three mechanisms, ten questions', [
+  return panel('Three mechanisms, eleven questions', [
     el('p', { class: 'note' }, [
       'The second row is the load-bearing one. It is what turns "watermark versus ' +
       'signature" from a taxonomy into a consequence. Every question expands into the ' +
@@ -782,6 +803,12 @@ const BRANCHES: readonly Branch[] = [
     question: 'How robust is it?',
     anchor: 'act-3',
     destination: 'Acts III and IV · entropy, then live attacks',
+  },
+  {
+    question: 'So what is it good for?',
+    anchor: 'act-8',
+    destination: 'Act VIII · useless for judging one essay, serviceable for measuring a ' +
+      'population — with the interval that says how well',
   },
   {
     question: 'Can I verify the claims?',

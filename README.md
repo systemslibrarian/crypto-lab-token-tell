@@ -39,10 +39,11 @@ for the whole page.
 - **Demo** — the 90-second route, and what a first-time visitor is given: the hero
   experiment, the two signing acts, a four-question comparison, and a panel that branches
   into the rest. Five chapters.
-- **Full lab** — Acts I to VII in order plus the reference section: tournament sampling,
+- **Full lab** — Acts I to VIII in order plus the reference section: tournament sampling,
   the detector opened up, entropy, the attack sweeps, the wrong-key sweep, the one-bit key
-  mutation, the cross-implementation comparison, the ten-row comparison table, and the
-  limitations, maths, vectors and sources. Nine chapters.
+  mutation, the cross-implementation comparison, the eleven-row comparison table, the
+  population estimate over a mixed corpus, and the limitations, maths, vectors and
+  sources. Ten chapters.
 
 The depth is a display decision over one page, not a second copy of it. Elements only an
 auditor needs carry `data-depth="lab"`, the few compact restatements written for the short
@@ -53,16 +54,18 @@ shorter render path — the one change that would make the page dishonest, becau
 of the two copies would be the code under test — would fail it.
 
 Stated plainly, because it is what the short route costs: **Demo hides most of the page.**
-Five of the nine sections are hidden, along with three panels inside the hero — the
+Six of the ten sections are hidden, along with three panels inside the hero — the
 wrong-key sweep, the one-bit key mutation and the cross-implementation comparison — and
 Act VII's stripping-versus-regeneration experiment. At a laptop width the short route is
-6,619 px of document against the full lab's 22,717; on a phone, 10,905 against 39,344.
+7,309 px of document against the full lab's 26,893; on a phone, 12,485 against 47,655.
 All four are `document.documentElement.scrollHeight`, read off the production build at
-1052 and 390 CSS pixels wide — exact rather than rounded, because two of them were
-rounded to fifty and printed beside two that were not.
+1052 and 390 CSS pixels wide in headless Chromium — exact rather than rounded, because two
+of them were once rounded to fifty and printed beside two that were not, and specific to
+that renderer: the same build with different fonts installed measures a few percent
+apart.
 
 Three ways back to all of it: the **Full lab** segment; `?mode=lab` in the address; or the
-"Choose the depth" panel that closes the short route, whose four questions each open the
+"Choose the depth" panel that closes the short route, whose five questions each open the
 full lab at the act that answers them.
 
 No qualification is dropped, but two are deferred rather than shown. The
@@ -85,16 +88,19 @@ displacing the thing being navigated to.
 ## Exhibits
 
 The short route shows exhibits 1, 6, 7 and 8 — the first without its sweeps, the eighth
-compressed to four of its ten questions. Full lab shows all eight whole and in order, plus
-the reference section: the limitations, the maths, the test vectors and the sources.
+compressed to four of its eleven questions. Full lab shows all nine whole and in order,
+plus the reference section: the limitations, the maths, the test vectors and the sources.
 
-1. **Same text, different key.** One watermarked passage, three runs of one detector: the
-   configured key, a wrong key on byte-identical input, and an unwatermarked control. Each
-   is a result card — verdict, mean, threshold, exact p-value, one sentence saying what
-   changed — with the rest of the audit trail behind **Show calculation**. Then the same
-   experiment across up to 300 random keys, with the measured spread shown beside the
-   spread the exact null predicts. A one-bit key mutation, and the same bytes read by the
-   other published implementation.
+1. **Same text, different key.** Opening with where a mark can go — a wire figure in a
+   1280s paper mould, an inaudible code in Hembrooke's 1954 Muzak patent, and the word
+   choices here — because each move puts the mark further inside the thing being marked
+   and the last one runs out of substrate. Then one watermarked passage, three runs of
+   one detector: the configured key, a wrong key on byte-identical input, and an
+   unwatermarked control. Each is a result card — verdict, mean, threshold, exact p-value,
+   one sentence saying what changed — with the rest of the audit trail behind
+   **Show calculation**. Then the same experiment across up to 300 random keys, with the
+   measured spread shown beside the spread the exact null predicts. A one-bit key
+   mutation, and the same bytes read by the other published implementation.
 2. **The hidden choice.** Tournament sampling over a pinned GPT-2 distribution. Up to
    eight layers draw the literal bracket over 2^m candidates; above that the view becomes
    layered, and the page says plainly that neither the browser nor any real implementation
@@ -114,9 +120,16 @@ the reference section: the limitations, the maths, the test vectors and the sour
 7. **A signature can sign a lie.** A plainly false statement, signed with a real key, and
    verified.
 8. **What each mechanism proves.** The symmetric-secret / asymmetric-public distinction,
-   a ten-row comparison whose second row is load-bearing — four of those ten questions on
-   the short route, selected out of the same data rather than restated — and stripping
-   versus regeneration measured side by side.
+   an eleven-row comparison whose second row is load-bearing — four of those eleven
+   questions on the short route, selected out of the same data rather than restated —
+   including the row on which way the evidence points, and stripping versus regeneration
+   measured side by side.
+9. **Measure a population.** The answer to "so what is it for?". The 96 pinned texts are
+   cut into 768 forty-token documents; a third of them calibrate a threshold and its two
+   error rates, and the rest are mixed at a fraction the estimator never sees. What comes back is an estimated
+   marked fraction with a 95% interval that closes as the corpus grows — while the
+   individual verdicts underneath it, counted on the same documents at the same moment,
+   stay exactly as weak as Act II said they were.
 
 ## Live Demo
 
@@ -155,10 +168,10 @@ manifest removal, and whether it proves the content is true.
 → *Asked who can verify → only the issuer can check a watermark; anyone can check a
 signature.*
 
-**1:40 — Choose the depth.** Four branches, each of which switches to Full lab and lands
+**1:40 — Choose the depth.** Five branches, each of which switches to Full lab and lands
 on the act that answers it: how the hidden token choice works (Act I), how to read the
-detector (Act II), how robust it is (Acts III and IV), and whether the claims can be
-verified (the reference section).
+detector (Act II), how robust it is (Acts III and IV), what it is good for (Act VIII), and
+whether the claims can be verified (the reference section).
 
 ## Deep Links
 
@@ -179,10 +192,10 @@ the link is rendered as selected text to copy by hand rather than failing silent
 | `scenario` | `high_entropy`, `low_entropy`, `mid_entropy` | Opens Act I's tournament on that pinned distribution. |
 | `sign` | `tampered`, `stripped` | Opens Act V with the hard binding broken, or with the manifest removed, instead of signed and intact. |
 
-The anchors are `#hero-experiment`, `#act-1` through `#act-7`, `#reference`, and
+The anchors are `#hero-experiment`, `#act-1` through `#act-8`, `#reference`, and
 `#branch-depth` for the panel that closes the short route. A section the current depth
-hides cannot be reached by anchor alone, so a link into Acts I to IV or the reference
-section needs `mode=lab` beside it; the branch links inside the page switch the depth for
+hides cannot be reached by anchor alone, so a link into Acts I to IV, Act VIII or the
+reference section needs `mode=lab` beside it; the branch links inside the page switch the depth for
 you. Every anchor lands its heading clear of both sticky bars, which the visual suite
 checks at four widths rather than trusting a scroll margin.
 
@@ -212,7 +225,7 @@ tested, not an intention:
 - **Reset without reloading.** Every mutable experiment carries its own reset — *Reset the
   sweep*, *Reset the tournament*, *Reset the detector*, *Reset the recomputation*, *Reset
   the corpus scoring*, *Reset the attacks*, *Reset act* in Acts V and VI, *Reset and
-  re-run both* in Act VII — and the icon in the header rebuilds all of them at once and
+  re-run both* in Act VII, *Reset the estimate* in Act VIII — and the icon in the header rebuilds all of them at once and
   says so through a live region. A reload would also discard the depth, the anchor and the
   scroll position the audience is looking at, which is why nothing on the page needs one.
 - **Mutation controls stay off until there is something to mutate.** Act V's flip, strip
@@ -318,10 +331,10 @@ pip install -r tools/requirements-transformers.txt  # capture_sampling_table.py 
 ## Build & Verify
 
 ```
-npm test              # 214 unit tests, including differential vectors from both references
+npm test              # 230 unit tests, including differential vectors from both references
 npm run verify        # the independent verifier: 112 checks, sharing no module with the lab
 npm run verify:manifest
-npm run test:a11y     # all five browser suites, 61 tests, against the production build
+npm run test:a11y     # all five browser suites, 62 tests, against the production build
 ```
 
 `npm run test:a11y` builds the site and serves the build with `vite preview` before it
@@ -329,7 +342,7 @@ starts, so what passes there is what ships. The five suites can be run one at a 
 
 ```
 npx playwright test e2e/a11y.spec.ts     # axe WCAG 2.1 A/AA plus further oracles; slow
-npx playwright test e2e/claims.spec.ts   # 20 tests that re-derive what the page says
+npx playwright test e2e/claims.spec.ts   # 21 tests that re-derive what the page says
 npx playwright test e2e/offline.spec.ts  # the precache under host rules, not preview's
 npx playwright test e2e/smoke.spec.ts    # every act mounts and computes at either depth
 npx playwright test e2e/visual.spec.ts   # 34 geometry tests at four viewports; ~80 s

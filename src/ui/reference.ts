@@ -153,6 +153,15 @@ const PROVENANCE: ProvenanceEntry[] = [
       'status.',
   },
   {
+    component: 'population estimate',
+    kind: 'demo',
+    source: 'Rogan–Gladen prevalence correction with a Wilson score interval',
+    note: 'Screening-test arithmetic from epidemiology, applied to a watermark detector in ' +
+      'Act VIII. Neither piece comes from the watermarking literature, and neither says ' +
+      'anything about an individual document: the correction works precisely because it ' +
+      'never decides which documents are marked.',
+  },
+  {
     component: 'signature',
     kind: 'reference',
     source: 'ECDSA P-256 with SHA-256 via WebCrypto',
@@ -197,6 +206,10 @@ const LIMITATIONS: string[] = [
   'than hides.',
   'The empirical null measured here is over a single model and prompt style. It is not a ' +
   'general statement about how the mean g-score behaves.',
+  'Act VIII’s population estimate assumes the two error rates measured on its calibration ' +
+  'half hold on the half it measures, and its interval covers sampling error in the corpus ' +
+  'alone — not the error in those rates, not the correlation between eight documents cut ' +
+  'from one generation, and nothing at all about a population unlike this one.',
 ];
 
 interface Source {
@@ -284,6 +297,42 @@ const SOURCES: Source[] = [
     detail: 'ICML 2023. The green-list watermark whose z-statistic is a different statistic from the mean g-score used here, and must not be borrowed for it.',
     url: 'https://arxiv.org/abs/2301.10226',
     accessed: '2026-08-19',
+  },
+  {
+    title: 'Hembrooke, E. F. "Identification of sound and like signals"',
+    detail: 'United States Patent 3,004,104, filed 29 April 1954 (Serial No. 426,465), granted 10 October 1961; Emil Frank Hembrooke of Brooklyn, N.Y., assignor to Muzak Corporation. The audio beat of the Hero’s opening panel, read from the patent itself rather than from any account of it: identification by suppressing "a selected frequency, or narrow band of frequencies … at timed intervals according to a predetermined code", imperceptible "[b]ecause of the insensitivity of the ear in detecting the absence of a particular frequency". Its analogy is quoted on this page in the patent’s own words — "i.e. it may be likened to a watermark in paper" — which the survey below, and most sources after it, reproduce as "can be likened". The number was resolved in the USPTO’s Patent Public Search (ppubs.uspto.gov, which serves pre-1976 grants as page images); the URL here is the full-text facsimile that was actually read.',
+    url: 'https://patents.google.com/patent/US3004104A/en',
+    accessed: '2026-08-20',
+  },
+  {
+    title: 'Harris, N. "Paper and Watermarks as Bibliographical Evidence"',
+    detail: 'Second edition, Lyon: Institut d’histoire du livre, 2017, ISBN 9782956042716. The paper beat, and the reason this page does not print the usual date: the mark is made "by stitching a piece of wire bent into a distinctive shape to the surface of the mould", and "[w]here the paper is thinner, in correspondence with the watermark and chain-lines, more light passes through". On the date, Harris puts the first watermarks "in the mid to late 1280s (not quite as early as the ‘1282’ claimed by Briquet)" — Briquet’s Bologna entry n. 5410 carries his own question mark, and a systematic search of that archive published in 2009 could not relocate it. The link is the author’s own institutional copy at the University of Udine, which is the text that was read.',
+    url: 'https://air.uniud.it/retrieve/e27ce0c5-079a-055e-e053-6605fe0a7873/Harris_Paper_%20and_Watermarks_2017.pdf',
+    accessed: '2026-08-20',
+  },
+  {
+    title: 'Cox, I. J., Miller, M. L. "The First 50 Years of Electronic Watermarking"',
+    detail: 'EURASIP Journal on Applied Signal Processing 2002(2):126–132, doi:10.1155/S1110865702000525; first given at the IEEE 2001 International Workshop on Multimedia Signal Processing, 225–230. Cites the Hembrooke patent as, "[t]o the best of our knowledge … the earliest reference to electronic watermarking". Carried here for the lineage only: it makes no claim about this construction.',
+    url: 'https://doi.org/10.1155/S1110865702000525',
+    accessed: '2026-08-20',
+  },
+  {
+    title: 'Rogan, W. J., Gladen, B. "Estimating prevalence from the results of a screening test"',
+    detail: 'American Journal of Epidemiology 107(1):71–76 (1978), doi:10.1093/oxfordjournals.aje.a112510. The correction Act VIII inverts an observed positive rate with, published for the same problem in a different field: measuring how common something is in a population with a test that is wrong about individuals.',
+    url: 'https://doi.org/10.1093/oxfordjournals.aje.a112510',
+    accessed: '2026-08-20',
+  },
+  {
+    title: 'Wilson, E. B. "Probable Inference, the Law of Succession, and Statistical Inference"',
+    detail: 'Journal of the American Statistical Association 22(158):209–212 (1927), doi:10.1080/01621459.1927.10502953. The score interval Act VIII puts on its counts before correcting them, rather than the normal interval, which at these counts runs outside the range a fraction can occupy.',
+    url: 'https://doi.org/10.1080/01621459.1927.10502953',
+    accessed: '2026-08-20',
+  },
+  {
+    title: 'Chesney, R., Citron, D. K. "Deep Fakes: A Looming Challenge for Privacy, Democracy, and National Security"',
+    detail: 'California Law Review 107:1753–1820 (2019); the liar’s dividend is §II.i, at 1785. Named in Act VII’s polarity row for the second-order effect of evidence that runs against the person holding the content: as an audience learns that a test exists, denial gets cheaper. Their subject is deep fakes rather than text watermarks, and the transfer is this page’s, not theirs.',
+    url: 'https://www.californialawreview.org/print/deep-fakes-a-looming-challenge-for-privacy-democracy-and-national-security',
+    accessed: '2026-08-20',
   },
 ];
 

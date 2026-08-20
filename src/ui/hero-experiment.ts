@@ -215,6 +215,8 @@ export function renderHeroExperiment(root: HTMLElement): void {
     'byte-identical input and differ only in the key. Watch what happens to the evidence.',
   ));
 
+  root.append(renderLineage());
+
   const inputs = renderInputs();
   root.append(inputs.node);
 
@@ -274,6 +276,79 @@ export function renderHeroExperiment(root: HTMLElement): void {
     firstFigure: figures[0],
     closing,
   }));
+}
+
+/**
+ * Where a mark can go: the substrate, the signal, the choices.
+ *
+ * The word "watermark" is doing a lot of work on this page, and it arrives carrying seven
+ * and a half centuries of a technique that behaves nothing like the one below it. Three beats are
+ * enough to make the difference structural rather than terminological: each move puts the
+ * identifier further inside the thing being marked, and the last move runs out of thing.
+ * That is the sentence the whole lab is a demonstration of — a mark in the sheet can be
+ * read by anyone with a window, and a mark in the word choices cannot be read without the
+ * key.
+ *
+ * Every date and every quotation here is from a primary or scholarly source rather than
+ * from the potted history that circulates with them, and the reference section carries
+ * both in full. Two of them are corrections: the first watermarks are usually dated 1282,
+ * a date Briquet himself published with a question mark and which has never been
+ * relocated since; and the Hembrooke patent's sentence is widely quoted as "can be
+ * likened", where the patent says "may be".
+ */
+function renderLineage(): HTMLElement {
+  // The same list shape the reference section's limitations use: an explicit role on both
+  // halves, so the list survives whatever a stylesheet later does to its markers.
+  const beat = (label: string, text: string): HTMLElement =>
+    el('li', { role: 'listitem' }, [el('b', { text: `${label} ` }), text]);
+
+  return panel('Where a mark can go', [
+    el('p', {}, [
+      'Three substrates, from the 1280s to this page, and the same idea each time: put ' +
+      'the identifier inside the thing rather than beside it.',
+    ]),
+    el('ul', { role: 'list' }, [
+      beat('Paper, from the 1280s.',
+        'A figure bent in wire and stitched to the surface of the mould left less pulp ' +
+        'where it sat. The sheet is thinner along the wire, more light passes through it ' +
+        'there, and the shape appears when the page is held up to a window. Nothing is ' +
+        'added to the sheet: the mark is a variation in the sheet itself.'),
+      beat('Sound, 1954.',
+        'Emil Hembrooke filed for Muzak Corporation a scheme that suppressed a narrow ' +
+        'band of frequencies at timed intervals, to a code — inaudible, because the ear ' +
+        'does not miss a band that was never there, and hard to strip, because it is part ' +
+        'of the signal rather than an attachment to it. The patent reaches for the older ' +
+        'craft by name: the invention, it says, "may be likened to a watermark in paper".'),
+      beat('Text, on this page.',
+        'There is no sheet to thin and no band to notch. The words are the whole of the ' +
+        'artefact and every one of them is on display, so the only thing left that can ' +
+        'carry a mark is which word came next — which is what the detector below is ' +
+        'reading, and what the key it needs is for.'),
+    ]),
+    // The corrections are on the page rather than only in the sources, because the short
+    // route never paints the reference section and a date repeated from a potted history
+    // is exactly the kind of claim this lab exists to distrust.
+    el('p', { class: 'note' }, [
+      'Both of those come from the sources rather than from the version that circulates ' +
+      'with them. The first watermarks are usually dated 1282; that is Briquet’s own ' +
+      'entry, which he published with a question mark and which a systematic search of ' +
+      'the same archive could not relocate, so the reliably dated examples are later in ' +
+      'that decade. And Hembrooke’s sentence is widely quoted as "can be likened", where ' +
+      'the patent — US 3,004,104, filed 29 April 1954, granted 10 October 1961 — says ' +
+      '"may be". Both are cited in full in the reference section.',
+    ]),
+    // Deliberately not a `consequence`: that line is this page's device for reporting what
+    // an experiment did when something was changed, and every one of them on this page
+    // closes a measurement. This is a historical claim, and borrowing the form would put
+    // it in the same voice as the three runs below.
+    el('p', {}, [
+      'Each move pushes the mark further inside the thing being marked, and the last one ' +
+      'runs out of thing. ',
+      el('b', { text: 'The mark ends up in the choices themselves' }),
+      ' — and a choice, unlike a thinner sheet, cannot be checked by holding it to the ' +
+      'light. It takes the key, which is what the rest of this page is about.',
+    ]),
+  ]);
 }
 
 /**

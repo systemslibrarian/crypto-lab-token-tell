@@ -20,7 +20,7 @@ import { expect, test } from '@playwright/test';
  */
 
 const SECTIONS = ['hero-experiment', 'act-1', 'act-2', 'act-3', 'act-4', 'act-5', 'act-6',
-  'act-7', 'reference'];
+  'act-7', 'act-8', 'reference'];
 
 /** What the short route shows. Everything else is on the page, tagged for Full lab. */
 const DEMO_SECTIONS = ['hero-experiment', 'act-5', 'act-6', 'act-7'];
@@ -48,7 +48,7 @@ test('every act mounts and computes', async ({ page }) => {
     await expect(section.locator('h2')).toHaveCount(1);
   }
 
-  // Shown: four in Demo, and all nine in Full lab. The union is every section, which is
+  // Shown: four in Demo, and all ten in Full lab. The union is every section, which is
   // what makes "hidden" the whole of the difference between the two depths.
   for (const id of SECTIONS) {
     const section = page.locator(`#${id}`);
@@ -128,12 +128,12 @@ test('the thesis is stated above the fold, and carried once per act in the full 
     expect(box).not.toBeNull();
     expect(box!.y + box!.height).toBeLessThan(viewport!.height);
 
-    // NINE in the DOM at either depth, because nine renderers each emit exactly one and
+    // TEN in the DOM at either depth, because ten renderers each emit exactly one and
     // the depth is a display decision over them, not a second render pass. A count
     // locator reads through `hidden`, so this number would not move even if every strip
     // were hidden — which is why the visible count is asserted separately below.
     const strips = page.locator('.thesis-strip');
-    await expect(strips).toHaveCount(9);
+    await expect(strips).toHaveCount(10);
 
     // NONE visible in Demo. The strip is a travelling copy of the `.thesis` block, and on
     // the short route that block is permanently on screen a third of a viewport above the
@@ -145,10 +145,10 @@ test('the thesis is stated above the fold, and carried once per act in the full 
     await expect(page.locator('.thesis-headline')).toBeVisible();
     await expect(page.locator('.thesis-precise')).toBeVisible();
     await page.goto('./?mode=lab');
-    // The nine in the DOM again first, and it is a retrying assertion for a reason: the
+    // The ten in the DOM again first, and it is a retrying assertion for a reason: the
     // sections do not all mount in the load event any more, so a visible count taken the
     // instant the navigation resolves is counting a page that is still being built. The
     // number below is unchanged; only the assumption that the page was finished is.
-    await expect(strips).toHaveCount(9);
-    expect(await page.locator('.thesis-strip:visible').count()).toBe(9);
+    await expect(strips).toHaveCount(10);
+    expect(await page.locator('.thesis-strip:visible').count()).toBe(10);
   });

@@ -33,6 +33,7 @@ import { renderAct3 } from './ui/act3-entropy.ts';
 import { renderAct4 } from './ui/act4-attacks.ts';
 import { renderAct5, renderAct6 } from './ui/act5-sign.ts';
 import { renderAct7 } from './ui/act7-compare.ts';
+import { renderAct8 } from './ui/act8-aggregate.ts';
 import { renderReference } from './ui/reference.ts';
 import { mountChapters, renderChapters } from './ui/chapters.ts';
 import { applyMode, renderModeControl, setParam } from './ui/mode.ts';
@@ -53,6 +54,7 @@ const PANELS: [string, (root: HTMLElement) => void][] = [
   ['act-2', renderAct2],
   ['act-3', renderAct3],
   ['act-4', renderAct4],
+  ['act-8', renderAct8],
   ['reference', renderReference],
 ];
 
