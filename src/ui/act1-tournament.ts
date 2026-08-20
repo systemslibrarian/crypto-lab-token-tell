@@ -11,6 +11,14 @@
  *
  * The panel keeps two things apart on purpose: the conceptual tournament over 2^m
  * candidates, and the implementation strategy, which never builds them.
+ *
+ * Two things here are about being demonstrated rather than about the mathematics. The act
+ * states one dominant result — how far keyed selection moved the model, and which token it
+ * returned — above the audit trail that produces it, because three equal-weight blocks of
+ * parameters ask a room to decide for itself what the point was. And the scenario is a
+ * deep link: a presenter who has chosen a distribution can hand over the URL and know the
+ * next person sees the same tournament, rather than the shipped default with a spoken
+ * instruction attached.
  */
 
 import distributions from '../data/pinned/distributions.json';
@@ -23,14 +31,39 @@ import { tokenizer } from '../lab-config.ts';
 import {
   applyTournamentReweighting, runBracket, totalVariationDistance,
 } from '../watermark/tournament.ts';
+import type { BracketResult } from '../watermark/tournament.ts';
+import { resetButton } from './busy.ts';
 import {
-  actHeader, button, clear, el, fixed, integer, labelledRange, labelledSelect, panel,
-  provenanceTag, readout, scroller,
+  actHeader, button, clear, consequence, el, fixed, integer, labelledRange, labelledSelect,
+  panel, provenanceTag, readout, scroller,
 } from './dom.ts';
+import { param, setParam } from './mode.ts';
 
 const LITERAL_BRACKET_MAX_DEPTH = 8;
 
 type PinnedDistribution = typeof distributions.distributions.high_entropy;
+type DistributionKey = keyof typeof distributions.distributions;
+
+/** The state a presenter gets back from Reset, and the state a bare URL opens in. */
+const SHIPPED = {
+  depth: 3,
+  distribution: 'high_entropy' as DistributionKey,
+  seed: 20260819,
+};
+
+const SCENARIO_PARAM = 'scenario';
+
+function scenarioFromUrl(): DistributionKey {
+  const requested = param(SCENARIO_PARAM);
+  if (requested !== null && requested in distributions.distributions) {
+    return requested as DistributionKey;
+  }
+  // A parameter naming something this page cannot show is a link that lies about what the
+  // audience will see, so it is dropped rather than left sitting beside a different
+  // tournament.
+  if (requested !== null) setParam(SCENARIO_PARAM, null);
+  return SHIPPED.distribution;
+}
 
 function makeRandom(seed: number): () => number {
   let state = seed >>> 0 || 1;
@@ -62,10 +95,13 @@ export function renderAct1(root: HTMLElement): void {
   ]));
 
   const state = {
-    depth: 3,
-    distribution: 'high_entropy' as keyof typeof distributions.distributions,
-    seed: 20260819,
+    depth: SHIPPED.depth,
+    distribution: scenarioFromUrl(),
+    seed: SHIPPED.seed,
   };
+
+  const headline = el('div', { class: 'act-headline' });
+  root.append(headline);
 
   const host = el('div');
   const { field: depthField, input: depthInput, output: depthOutput } =
@@ -82,13 +118,32 @@ export function renderAct1(root: HTMLElement): void {
 
   const redraw = () => {
     state.depth = Number(depthInput.value);
-    state.distribution = distSelect.value as keyof typeof distributions.distributions;
+    state.distribution = distSelect.value as DistributionKey;
     depthOutput.textContent = String(state.depth);
     clear(host);
-    host.append(renderTournament(state.depth, state.distribution, state.seed));
+    const tournament = renderTournament(state.depth, state.distribution, state.seed);
+    host.append(tournament.node);
+    clear(headline);
+    headline.append(...renderHeadline(tournament.summary));
   };
   depthInput.addEventListener('input', redraw);
-  distSelect.addEventListener('change', redraw);
+  // The scenario is written to the URL on every change, including a change back to the
+  // shipped one: a link that omits the parameter and a link that names the default have
+  // to mean the same thing, and the presenter should never have to know which they have.
+  distSelect.addEventListener('change', () => {
+    setParam(SCENARIO_PARAM, distSelect.value);
+    redraw();
+  });
+
+  // The seed only ever moves forward, so without this the shipped draw is unreachable
+  // short of a reload — and a reload costs the depth, the anchor and the scroll position.
+  const reset = () => {
+    state.seed = SHIPPED.seed;
+    depthInput.value = String(SHIPPED.depth);
+    distSelect.value = SHIPPED.distribution;
+    setParam(SCENARIO_PARAM, null);
+    redraw();
+  };
 
   root.append(panel('Run a tournament', [
     el('p', { class: 'note' }, [
@@ -97,7 +152,8 @@ export function renderAct1(root: HTMLElement): void {
       'applied first, because that is what the reference implementation watermarks over.',
     ]),
     el('div', { class: 'controls' }, [depthField, distField,
-      button('New draw', () => { state.seed = (state.seed * 1103515245 + 12345) >>> 0; redraw(); })]),
+      button('New draw', () => { state.seed = (state.seed * 1103515245 + 12345) >>> 0; redraw(); }),
+      resetButton('Reset the tournament', reset)]),
     host,
   ], provenanceTag('paper', 'Algorithm 2, N = 2')));
 
@@ -105,11 +161,48 @@ export function renderAct1(root: HTMLElement): void {
   root.append(renderMaskingDemo());
 }
 
+interface TournamentSummary {
+  readonly depth: number;
+  readonly distributionLabel: string;
+  readonly conceptualCandidates: number;
+  readonly totalVariation: number;
+  /** Null above the depth at which no candidate is instantiated, which is most of them. */
+  readonly winningToken: string | null;
+}
+
+/**
+ * The one result this act is for: the distance between the model's own distribution and
+ * the one keyed selection leaves behind, and the token that distance produced.
+ *
+ * Both numbers appear again in the readouts below, which is deliberate rather than
+ * duplication — they are read from the same computation, so they cannot drift, and the
+ * difference between a decisive figure and an audit row is the whole point of stating one
+ * of them at this size.
+ */
+function renderHeadline(summary: TournamentSummary): Node[] {
+  const offered = `The model offered ${integer(summary.conceptualCandidates)} candidates`;
+  return [
+    el('p', { class: 'act-headline-label', text: 'How far the key moved the model' }),
+    el('p', { class: 'act-headline-figure', text: fixed(summary.totalVariation, 4) }),
+    el('p', {
+      class: 'act-headline-detail',
+      text: 'Total variation between the pinned sampling distribution and the distribution ' +
+        `after keyed selection, at ${integer(summary.depth)} layers over the ` +
+        `${summary.distributionLabel} context.`,
+    }),
+    summary.winningToken === null
+      ? consequence(offered,
+        'the key reweighted every one of them, and not one was drawn.')
+      : consequence(offered,
+        `the key decided which one survived: ${summary.winningToken}.`),
+  ];
+}
+
 function renderTournament(
   depth: number,
-  distributionKey: keyof typeof distributions.distributions,
+  distributionKey: DistributionKey,
   seed: number,
-): HTMLElement {
+): { node: HTMLElement; summary: TournamentSummary } {
   const dist = distributions.distributions[distributionKey] as PinnedDistribution;
   const tokenIds = dist.candidates.map((c) => c.token_id);
   const probabilities = dist.candidates.map((c) => c.probability);
@@ -123,6 +216,13 @@ function renderTournament(
   const reweighted = applyTournamentReweighting(probabilities, gValues, depth);
 
   const conceptualCandidates = 2 ** depth;
+  const totalVariation = totalVariationDistance(probabilities, reweighted.probabilities);
+  // The bracket is played here rather than inside the renderer so the winning token can be
+  // stated above the fold as well as drawn below it; the draw itself is unchanged.
+  const bracket = depth <= LITERAL_BRACKET_MAX_DEPTH
+    ? runBracket(probabilities, tokenIds, keys, contextHash,
+      defaultConstruction, makeRandom(seed), 'random')
+    : null;
   const container = el('div');
 
   container.append(readout([
@@ -134,35 +234,38 @@ function renderTournament(
     ['Distinct tokens in the pinned distribution', integer(tokenIds.length)],
     ['Entropy of that distribution', `${fixed(shannonEntropyBits(probabilities), 3)} bits`],
     ['Effective candidates (2^H)', fixed(effectiveCandidates(probabilities), 1)],
-    ['Total variation moved by the watermark',
-      fixed(totalVariationDistance(probabilities, reweighted.probabilities), 4)],
+    ['Total variation moved by the watermark', fixed(totalVariation, 4)],
   ], 'Tournament parameters'));
 
-  if (depth <= LITERAL_BRACKET_MAX_DEPTH) {
-    container.append(renderLiteralBracket(
-      probabilities, tokenIds, keys, contextHash, seed, dist));
-  } else {
-    container.append(renderAggregatedView(depth, conceptualCandidates, reweighted));
-  }
+  if (bracket) container.append(renderLiteralBracket(bracket, keys.length, dist));
+  else container.append(renderAggregatedView(depth, conceptualCandidates, reweighted));
 
   container.append(renderDistributionShift(dist, probabilities, reweighted.probabilities));
-  return container;
+
+  const winner = bracket
+    ? dist.candidates.find((c) => c.token_id === bracket.winnerTokenId)?.token_text ?? ''
+    : null;
+  return {
+    node: container,
+    summary: {
+      depth,
+      distributionLabel: distributionKey.replace('_', ' '),
+      conceptualCandidates,
+      totalVariation,
+      winningToken: winner === null ? null : JSON.stringify(winner),
+    },
+  };
 }
 
 function renderLiteralBracket(
-  probabilities: number[],
-  tokenIds: number[],
-  keys: number[],
-  contextHash: bigint,
-  seed: number,
+  result: BracketResult,
+  layers: number,
   dist: PinnedDistribution,
 ): HTMLElement {
-  const result = runBracket(probabilities, tokenIds, keys, contextHash,
-    defaultConstruction, makeRandom(seed), 'random');
   const textOf = (index: number) => dist.candidates[index].token_text;
 
   const bracket = el('div', { class: 'bracket' });
-  for (let layer = 0; layer < keys.length; layer++) {
+  for (let layer = 0; layer < layers; layer++) {
     const matches = result.matches.filter((match) => match.layer === layer);
     const row = el('div', { class: 'bracket-layer' }, [
       el('span', { class: 'layer-label', text: `layer ${layer + 1}` }),

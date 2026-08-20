@@ -22,6 +22,16 @@
   --alarm: #ff8a9c;
   --alarm-ink: #1a0409;
   --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  /* The two faces now carry a rule rather than a habit: the sans face is for
+     explanation and for labels, and the mono face is reserved for tokens, hashes,
+     statistics and provenance tags. Naming the sans stack is what lets a panel opt
+     back out of an inherited mono — `.compare-card-answers` is a readout holding
+     prose, not figures — without repeating the stack in six places. */
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Two bars stick to the top of the window. Every in-page jump has to clear both,
+     and both measure themselves into these properties at mount, so this is one
+     definition rather than a constant repeated at each deep-link target. */
+  --sticky-offset: calc(var(--cl-topbar-h, 4rem) + var(--chapters-h, 3rem) + 0.9rem);
   color-scheme: dark;
 }
 
@@ -33,8 +43,29 @@ body {
   margin: 0;
   background-color: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--sans);
   line-height: 1.55;
+}
+
+/* The depth mechanism rests on this one line. `hidden` is a UA rule, and ANY author rule
+   setting `display` outranks it regardless of specificity — .thesis-strip, .grid,
+   .controls, .field, .verdict and .legend all do. Without the !important, an element the
+   code believes it hid would carry on painting and Demo mode would be silently broken.
+   e2e/claims.spec.ts asserts exactly that trap is closed. */
+[hidden] { display: none !important; }
+
+/* Text for a screen reader alone. Clipped rather than faded, because opacity 0 leaves a
+   control in the tab order and invisible to a reader who can see. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Base element rules are scoped to #app so they never fight the always-dark top bar. */
@@ -43,7 +74,15 @@ body {
   margin: 0 auto;
   padding: 0 clamp(0.9rem, 3vw, 2rem) 3rem;
 }
-#app p { margin: 0 0 0.8rem; }
+/* `:where()` because this is a DEFAULT, and a default has to be overridable by the class
+   that knows better. Written as `#app p` it carried an ID's weight, so it silently beat
+   every class in this file that declared a margin on a paragraph — `.thesis-precise`'s
+   `margin: 0`, `.cl-hero-desc`'s `.55rem 0 0`, `.thesis-strip`'s `1.1rem`, `.cta-note`'s
+   `0`, `.consequence`'s `0.8rem 0` and each of the new result-card rules had no effect at
+   all, and a reader of the file could not tell. `:where()` contributes nothing to
+   specificity, so the paragraph rhythm still applies everywhere nothing else speaks, and
+   yields the moment something does. */
+:where(#app) p { margin: 0 0 0.8rem; }
 #app h2 { font-size: clamp(1.15rem, 2.4vw, 1.5rem); margin: 0 0 0.35rem; line-height: 1.25; }
 #app h3 { font-size: 1.02rem; margin: 1.4rem 0 0.5rem; }
 #app h4 { font-size: 0.9rem; margin: 1rem 0 0.4rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); }
@@ -59,7 +98,9 @@ body {
 .cl-hero-why{flex:0 1 min(40%,26rem);min-width:min(100%,15rem);border:1px solid var(--border);border-radius:10px;padding:.85rem 1.05rem;background:color-mix(in oklab,var(--accent) 6%,transparent);box-sizing:border-box;}
 .cl-hero-why-label{display:block;font-size:.68rem;font-weight:700;letter-spacing:.14em;}
 .cl-hero-why-text{margin:.35rem 0 0;font-size:.95rem;line-height:1.5;}
-@media (max-width:640px){.cl-hero{flex-direction:column;}.cl-hero-why{flex-basis:auto;width:100%;}}
+/* Once the hero is a column, `flex: 1 1 22rem` stops being a width and becomes 22rem of
+   empty vertical space between the description and the why-it-matters panel. */
+@media (max-width:640px){.cl-hero{flex-direction:column;}.cl-hero-main{flex:0 1 auto;}.cl-hero-why{flex-basis:auto;width:100%;}}
 
 /* The thesis. Stated once at full size, then carried in compact form on every panel. */
 .thesis {
@@ -90,30 +131,15 @@ body {
 }
 .thesis-strip b { color: var(--text); font-weight: 600; }
 
-.act-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0 0 2rem;
-  padding: 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--panel);
-}
-.act-nav a {
-  font-family: var(--mono);
-  font-size: 0.76rem;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid var(--border-control);
-  border-radius: 8px;
-  text-decoration: none;
-  color: var(--text-dim);
-}
-.act-nav a:hover { color: var(--text); border-color: var(--accent); }
+/* The nine-chip `.act-nav` cloud these rules styled was replaced by the sticky chapter
+   control; its markup is gone, so its styling goes with it rather than waiting to be
+   rediscovered by whoever reads this file next. */
 
-.act { margin: 0 0 3rem; scroll-margin-top: 5rem; }
+.act { margin: 0 0 3rem; }
+/* A kicker names the act. It is a label, so it takes the sans face; the mono face on
+   this page means a token, a hash, a statistic or a provenance label. */
 .act-kicker {
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 0.72rem;
   letter-spacing: 0.16em;
   color: var(--accent);
@@ -122,18 +148,50 @@ body {
 }
 .act-lede { color: var(--text-dim); max-width: 78ch; }
 
+/* There are forty-odd panels on this page and the border was the loudest thing about
+   most of them: a full-strength edge repeated at that scale reads as a grid of equal
+   claims, which is the opposite of the hierarchy this page needs. The ground still
+   separates a panel from the page; the edge is now a hairline that only defines where
+   the ground stops. It is decorative chrome, not a control boundary and not a
+   meaningful graphic, so WCAG 1.4.11 does not reach it — the oracle in e2e/nontext.ts
+   judges buttons, inputs, selects and link-shaped buttons, and no container. */
 .panel {
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in oklab, var(--border) 62%, var(--panel));
   border-radius: 12px;
   background: var(--panel);
   padding: clamp(0.85rem, 2.2vw, 1.25rem);
   margin: 1rem 0;
 }
-.panel-title { font-size: 0.95rem; font-weight: 700; margin: 0 0 0.5rem; }
+/* A title and its provenance tag are two things on one line at the two ends of it.
+   `panel()` in src/ui/dom.ts sets exactly these four properties inline when it is given
+   a tag; stating them here means a title built by hand — the result cards and the
+   comparison cards both build their own — does not have to repeat them. */
+.panel-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.6rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+}
+.panel > *:last-child { margin-bottom: 0; }
 
 .grid { display: grid; gap: 1rem; }
-.grid-3 { grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
-.grid-2 { grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); }
+/* `repeat(auto-fit, minmax(15rem, 1fr))` promises a floor it cannot keep: 15rem is
+   240px, so auto-fit packed three summary cards into 319px each at a 1052px laptop and
+   two into 353px each at 768px, and inside a card that narrow the definition values
+   broke to one character per line — 19 lines for `Binomial(9,060, 1/2)`, and a card
+   2,345px tall where 934px was intended. The contract is now stated rather than
+   inferred: one column until the viewport can hold three cards that are worth reading,
+   then exactly three. An explicit count at an explicit width is a contract; auto-fit is
+   a wish, and it is the wish that broke the hero. */
+.grid-3, .grid-2 { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) {
+  .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 .controls { display: flex; flex-wrap: wrap; gap: 0.7rem 1rem; align-items: flex-end; margin: 0.6rem 0 1rem; }
 /* min-width: 0 because a flex item's automatic minimum size is its content's min-content
@@ -168,11 +226,14 @@ select {
 input[type="range"] { accent-color: var(--accent); background: transparent; border: none; padding: 0; }
 textarea { width: 100%; min-height: 9rem; resize: vertical; font-family: var(--mono); font-size: 0.85rem; box-sizing: border-box; }
 
+/* A readout is audit detail: the ground says where it begins and it does not need an
+   edge as loud as the verdict above it. Same reasoning as `.panel`, and the same
+   exemption — a container edge is not a control boundary. */
 .readout {
   font-family: var(--mono);
   font-size: 0.85rem;
   background: var(--raised);
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in oklab, var(--border) 62%, var(--raised));
   border-radius: 10px;
   padding: 0.7rem 0.85rem;
 }
@@ -180,7 +241,9 @@ textarea { width: 100%; min-height: 9rem; resize: vertical; font-family: var(--m
    whole document sideways — WCAG 1.4.10 reflow, and the one check axe has no rule for.
    minmax(0, max-content) lets the column shrink and the text wrap instead. */
 .readout dl { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 0.2rem 0.9rem; margin: 0; }
-.readout dt { color: var(--text-dim); overflow-wrap: anywhere; }
+/* The term is a label and the value is a statistic, so they take different faces. The
+   readout keeps the mono face for its values; the terms opt back out of it. */
+.readout dt { color: var(--text-dim); overflow-wrap: anywhere; font-family: var(--sans); }
 .readout dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
 
 .verdict { display: flex; align-items: flex-start; gap: 0.55rem; padding: 0.6rem 0.75rem; border-radius: 10px; border: 1px solid var(--border-control); }
@@ -300,14 +363,25 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .compare-table tr.load-bearing th { font-size: 0.85rem; color: var(--text); }
 
-.progress { font-family: var(--mono); font-size: 0.8rem; color: var(--text-dim); }
+/* A progress line is a sentence about a count, so it is set in the sans face — but the
+   count changes several times a second, and proportional digits make the whole line
+   shuffle sideways while it does. Tabular figures hold the column still. */
+.progress {
+  font-family: var(--sans);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
 
+/* A disclosure sits inside a panel nine times out of ten, and a panel-coloured box on a
+   panel-coloured ground is a border pretending to be a container. The ground is left to
+   whatever it is opened on; the hairline is all that says where it begins. */
 details {
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in oklab, var(--border) 62%, var(--panel));
   border-radius: 10px;
   padding: 0.5rem 0.75rem;
   margin: 0.6rem 0;
-  background: var(--panel);
+  background: transparent;
 }
 summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
 summary::marker { color: var(--accent); }
@@ -334,4 +408,538 @@ code, .mono { font-family: var(--mono); font-size: 0.85em; }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+
+/* ---------------------------------------------------------------------------
+   Foundations: the depth switch, the chapter control, share, reset, and the
+   consequence line. Only the classes those modules own live here; the rest of
+   the page's styling is deliberately left where it already is.
+   --------------------------------------------------------------------------- */
+
+/* Two sticky bars now stack at the top of the window — the shared site header and the
+   chapter control. Both measure themselves into `--cl-topbar-h` and `--chapters-h` at
+   mount, so an in-page jump clears whatever they actually are rather than a guessed
+   constant. Every deep-link target carries the same offset; `.branch-panel` is one and
+   is not an act, which is why the offset is a token rather than a rule on `.act`. */
+.act, .branch-panel { scroll-margin-top: var(--sticky-offset); }
+
+/* A scroller is a tab stop, so the browser scrolls it into view when a keyboard reaches
+   it. The tall ones — the provenance table is fourteen hundred pixels — cannot fit, and
+   the browser then aligns their top edge with the top of the window, which is behind the
+   two sticky bars. The same offset the anchors use puts the focus ring back on screen. */
+.scroller { scroll-margin-top: var(--sticky-offset); }
+
+.lab-bar {
+  flex: 1 0 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+  margin: 0.9rem 0 0;
+}
+.lab-bar-actions { display: flex; align-items: center; gap: 0.5rem; }
+
+/* Act VII's mechanism switcher is the same control at a different scale, so it is the
+   same rules rather than a second set that would drift. Both are groups of buttons whose
+   selected state is a fill, a weight and a glyph. */
+.mode-switch,
+.mechanism-switch {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border: 1px solid var(--border-control);
+  border-radius: 10px;
+  background: var(--raised);
+}
+.mode-switch-option,
+.mechanism-switch-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.mode-switch-glyph,
+.mechanism-switch-glyph { font-family: var(--mono); font-size: 0.7em; }
+/* Selected is a fill, a weight and a glyph, not a colour. The glyph is what survives a
+   grayscale screenshot; aria-pressed is what a screen reader hears. */
+.mode-switch-option[aria-pressed="true"],
+.mechanism-switch-option[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+.mode-switch-option[aria-pressed="false"]:hover,
+.mechanism-switch-option[aria-pressed="false"]:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.share-control { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.share-control button {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.7rem;
+  color: var(--text-dim);
+}
+.share-control button:hover { color: var(--text); }
+.share-fallback:empty { display: none; }
+.share-link {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  width: min(22rem, 60vw);
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.reset-control {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.7rem;
+  color: var(--text-dim);
+  border-color: var(--border-control);
+}
+.reset-control:hover:not(:disabled) { color: var(--text); }
+.reset-global { display: inline-flex; align-items: center; justify-content: center; padding: 0.4rem; }
+.reset-global svg { width: 18px; height: 18px; display: block; }
+
+.cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin: 0 0 1.5rem; }
+.cta-button { font-size: 1rem; padding: 0.7rem 1.4rem; }
+/* Disabled, this button is not the primary action yet, so it should not look like one —
+   and muted ink on the accent fill would be unreadable for the second it exists. */
+.cta-button:disabled { background: var(--raised); border-color: var(--border-control); color: var(--text-dim); }
+.cta-note { margin: 0; font-size: 0.85rem; color: var(--text-dim); max-width: 52ch; }
+
+.chapters {
+  position: sticky;
+  top: var(--cl-topbar-h, 4rem);
+  z-index: 900;
+  /* Opaque: a translucent bar floating over changing content is measured against its own
+     DOM ancestors, not against whatever happens to be scrolling beneath it. */
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.3rem 0.45rem;
+  margin: 0 0 2rem;
+}
+.chapters-inner {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  overflow-x: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.chapters-inner li { flex: 0 0 auto; }
+/* Scoped to #app because the base `#app a` rule outranks a bare class and would leave
+   every chapter underlined and accent-coloured, which is the chip cloud's look, not a
+   current-section mark. */
+#app .chapters-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.74rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--border-control);
+  border-radius: 8px;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--text-dim);
+}
+#app .chapters-link:hover { color: var(--text); border-color: var(--accent); text-decoration: none; }
+#app .chapters-current {
+  background: color-mix(in oklab, var(--accent) 18%, var(--panel));
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 700;
+}
+.chapters-mark { font-family: var(--mono); color: var(--accent); }
+.chapters-mark:empty { display: none; }
+
+.chapters-compact { display: flex; align-items: center; gap: 0.4rem; }
+.chapters-select { flex: 1 1 auto; min-width: 0; font-size: 0.85rem; padding: 0.35rem 2rem 0.35rem 0.6rem; }
+.chapters-step {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.4rem 0.7rem;
+  color: var(--text-dim);
+}
+/* The mobile stylesheet stretches every button to full width, which would break this row
+   and the presenter bar; these controls size to their content at every width. The
+   `align-self` matters as much as the width: `.controls` becomes a stretch column on a
+   phone, and a stretched flex item ignores `width: auto` on its cross axis. Any control
+   here that lives inside `.controls` — the act resets, the digest copy — would otherwise
+   still be a full-width bar sitting beside the primary actions it is secondary to. */
+.mode-switch-option,
+.mechanism-switch-option,
+.chapters-compact button,
+.share-control button,
+.identity-copy,
+.reset-control { width: auto; align-self: flex-start; }
+
+.consequence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  border-left: 3px solid var(--accent);
+  padding: 0.4rem 0 0.4rem 0.7rem;
+  margin: 0.8rem 0;
+  font-size: 0.95rem;
+}
+.consequence-change { color: var(--text-dim); }
+.consequence-arrow { color: var(--accent); font-family: var(--mono); }
+.consequence-effect { color: var(--text); font-weight: 700; }
+
+.disclosure > summary { list-style-position: outside; }
+/* The chevron is the UA's own summary marker rather than an author `content:` glyph: this
+   page declares no generated content anywhere else, and adding some would make a whole
+   contrast oracle live against an empty baseline for the sake of a triangle the browser
+   already draws. Recolouring it is enough to make it read as a control. */
+.disclosure > summary::marker { color: var(--accent); }
+.disclosure-body { margin-top: 0.5rem; }
+
+@media (min-width: 641px) {
+  .chapters-compact { display: none; }
+}
+@media (max-width: 640px) {
+  .chapters-inner { display: none; }
+  /* The whole control has to stay under 56 px on a phone, and a touch target is 44 of
+     them: the padding is what is left. */
+  .chapters { padding: 0.2rem 0.4rem; }
+  .lab-bar { justify-content: flex-start; }
+}
+@media (pointer: coarse) {
+  .mode-switch-option, .mechanism-switch-option, .chapters-step, .chapters-select,
+  .reset-control, .identity-copy, .share-control button {
+    min-height: 44px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Presentation: the hero result cards, the act headlines, the comparison and
+   the short route's branch panel.
+
+   Two ideas run through all of it. The first is hierarchy: each act should have
+   one dominant result, and everything that lets a reader audit that result
+   should be visibly quieter than it — a verdict louder than its decisive
+   figure, that figure louder than the trail behind it. The second is that a
+   value must never be squeezed until it wraps a character at a time, which is
+   what happens whenever a two-column definition list is put inside a column
+   narrower than the sum of its two longest strings. Where that is a risk the
+   pair stacks and the value takes a full-width row.
+   --------------------------------------------------------------------------- */
+
+/* The three summary cards ------------------------------------------------- */
+
+/* The cards stretch to a common height so the three `Show calculation` handles
+   sit on one line. `display: contents` on the staging wrapper keeps that true
+   during a replay: the wrapper exists only so a reveal never has to know a
+   card's parent, and it should not become a box in the middle of the column. */
+.result-grid > .panel { display: flex; flex-direction: column; }
+.stage-host { display: contents; }
+.result-card { display: flex; flex-direction: column; gap: 0.55rem; flex: 1 1 auto; }
+.result-body { display: flex; flex-direction: column; gap: 0.55rem; flex: 1 1 auto; }
+.result-card > *, .result-body > * { margin: 0; }
+
+/* Three cards, but one table. The plan asks the comparison to read instantly across
+   the row — Evidence against No evidence, 0.5975 against 0.5030 against 0.4970 — and
+   it stops doing that the moment one verdict's qualification runs to four lines and
+   its neighbours' run to three: the decisive figures then sit at three different
+   heights and the eye has to hunt for each one instead of sweeping across them.
+   Equal card heights are not enough, because they only align the first row and the
+   last. `subgrid` is the mechanism that actually aligns the rows BETWEEN them: each
+   card opts out of sizing its own rows and adopts the grid's, so a row is as tall as
+   the tallest card needs and every card agrees where the next one starts. The chain
+   is three deep because there are three boxes between the grid and the content — the
+   panel, the card, and the body the reveal replaces wholesale — and each has to pass
+   the rows through rather than consume them.
+
+   Scoped to the width where the cards are actually side by side: stacked one-up
+   there is no row to share, and `span 6` against a single-column grid would claim
+   five rows that belong to the cards below. Guarded by `@supports` because a browser
+   without subgrid drops only the `subgrid` declaration and would keep `display: grid`
+   and the span — a worse layout than the flex column it replaced. */
+@media (min-width: 900px) {
+  @supports (grid-template-rows: subgrid) {
+    .result-grid > .panel { display: grid; grid-template-rows: subgrid; grid-row: span 6; }
+    .result-card { display: grid; grid-template-rows: subgrid; grid-row: span 6; }
+    .result-body { display: grid; grid-template-rows: subgrid; grid-row: span 4; }
+  }
+}
+
+.result-card .panel-title { font-size: 1rem; margin: 0; }
+.result-scope { font-size: 0.8rem; color: var(--text-dim); }
+
+/* The verdict is the heaviest thing in the card: it is the answer, and the
+   figures below it are how the answer was reached. */
+.result-verdict .label { font-size: 1.1rem; line-height: 1.3; }
+.result-verdict .detail { margin-top: 0.15rem; font-weight: 400; }
+
+.result-metrics { display: grid; gap: 0.5rem; margin: 0; }
+/* Label above value, not beside it. Beside it, the value's column is whatever the
+   label leaves — and in a 319px card the label leaves nothing. Stacked, every
+   value has the full width of the card, which is the "full-width row" the plan
+   asks for and the reason no figure here can wrap a character at a time. */
+.result-metric { display: grid; grid-template-columns: minmax(8ch, 1fr); gap: 0.05rem; }
+.result-metric-label {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+}
+.result-metric-value {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+/* The decisive number. This is the figure the three-column reading of the
+   experiment is made of — 0.5975 against 0.5030 against 0.4970 — so it is the
+   one thing in the card that can be read from the back of a room. */
+.result-metric-major .result-metric-value {
+  font-size: clamp(1.6rem, 4.4vw, 2.1rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+.result-change { font-size: 0.85rem; color: var(--text-dim); }
+/* Pushed to the foot of the card so the three handles align, which is what makes
+   the audit trail read as a footnote to the three results rather than as a fourth
+   result of its own. */
+.result-calculation { margin: auto 0 0; }
+.result-calculation > summary { font-size: 0.82rem; color: var(--text-dim); }
+
+/* Placeholder text during a staged reveal. Text, not a faded copy of the result:
+   the gate measures effective opacity and a staged reveal must stage CONTENT.
+   The minimum height keeps the column from collapsing and springing back while
+   the beats land. */
+.result-waiting {
+  margin: 0;
+  min-height: 9rem;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
+@media (min-width: 900px) {
+  /* Three-up puts the audit trail in a column between about 270 and 385px wide.
+     `minmax(0, max-content)` then hands the whole of it to the longest term —
+     `Standard error if independent` — and leaves the value a track measured at
+     0px, which is how `Binomial(9,060, 1/2)` came to render on nineteen lines.
+     Inside a card the pair stacks instead; below 900px the card is the width of
+     the page and the two-column form is comfortable again. */
+  .result-card .readout dl { grid-template-columns: minmax(8ch, 1fr); }
+  .result-card .readout dd { text-align: left; color: var(--text); }
+}
+
+/* The compressed identity claim ------------------------------------------- */
+
+.identity { display: flex; flex-direction: column; gap: 0.5rem; }
+.identity > * { margin: 0; }
+.identity .controls { margin: 0; }
+.identity-claim { font-size: 1rem; color: var(--text-dim); }
+.identity-claim b { color: var(--text); font-weight: 700; }
+.identity-copy { font-size: 0.8rem; padding: 0.4rem 0.7rem; color: var(--text-dim); }
+.identity-copy:hover:not(:disabled) { color: var(--text); }
+.identity-digests { margin: 0; }
+
+/* One dominant result per act ---------------------------------------------- */
+
+/* Not a panel: a panel is one of several and this is the answer the act exists to
+   give. It gets a raised ground and a stronger edge instead of the accent rule the
+   thesis strip uses, because a second purple rule directly beneath the first would
+   make the claim and the result look like the same kind of statement. */
+.act-headline {
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--raised);
+  padding: clamp(0.75rem, 2vw, 1rem) clamp(0.85rem, 2.2vw, 1.2rem);
+  margin: 0 0 1.2rem;
+}
+.act-headline > *:last-child { margin-bottom: 0; }
+.act-headline-label {
+  margin: 0 0 0.1rem;
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.act-headline-figure {
+  margin: 0 0 0.3rem;
+  font-family: var(--mono);
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text);
+  /* `16 components, 9 limitations` and `0.1352 against 0.0213` are sentences at
+     display size; they may wrap, but never off the side of a phone. */
+  overflow-wrap: anywhere;
+}
+.act-headline-detail { margin: 0; font-size: 0.88rem; color: var(--text-dim); max-width: 72ch; }
+
+/* A figure's takeaway sits above the drawing, where a reader meets it first. It is
+   deliberately not `.note`: it outranks the caption below the chart, so it takes the
+   full text colour rather than the dim one. The caption states the same facts in
+   numbers and stays where it is, dim and beneath. */
+.chart-takeaway { margin: 0 0 0.45rem; font-size: 0.92rem; color: var(--text); max-width: 72ch; }
+figcaption { margin-top: 0.4rem; max-width: 78ch; }
+
+/* Act VII: the comparison -------------------------------------------------- */
+
+/* The question is the control. Transparent and edgeless is the design — a reader
+   is asked to press the question itself — and it is also what keeps the trigger
+   out of WCAG 1.4.11's judged set: an element drawing neither a fill nor a border
+   nor an outline is identified by its text, and e2e/nontext.ts skips it. With the
+   inherited `button` chrome it drew a `--border-control` edge measured at 2.88:1
+   against the accent-tinted load-bearing row, which is a finding against an empty
+   baseline. */
+.compare-why {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 0.15rem 0;
+  color: inherit;
+  font: inherit;
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.compare-why:hover:not(:disabled) { color: var(--accent); border-color: transparent; }
+.compare-chevron { font-family: var(--mono); color: var(--accent); flex: 0 0 auto; }
+.compare-table tr.load-bearing .compare-why { font-size: 0.95rem; color: var(--text); }
+/* Focus tints the chosen column. Announced as well as shown: the switch sets
+   aria-pressed and writes the choice to a live region, so the tint is not the only
+   thing carrying it. */
+.compare-focus { background: color-mix(in oklab, var(--accent) 14%, transparent); }
+.compare-table .compare-question { min-width: 0; }
+
+/* The four-question compact form. Three columns above 900px with the load-bearing
+   question spanning all of them: it is the one the short route is built to land, so
+   it is the widest card on the row rather than the first of four equals. */
+.compare-cards { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) {
+  .compare-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .compare-card-lead { grid-column: 1 / -1; }
+}
+.compare-card { margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.compare-card > * { margin: 0; }
+.compare-card-question { font-size: 0.95rem; }
+.compare-card-lead {
+  border-color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 8%, var(--panel));
+}
+.compare-card-lead .compare-card-question { font-size: 1.05rem; }
+/* These answers are prose — "Anyone holding the public key" — not statistics, so the
+   readout's mono face is turned off here. Stacked and left-aligned for the same reason
+   the summary metrics are: a three-column grid of cards is exactly the container where
+   a term column would eat the answer. */
+.compare-card-answers { font-family: var(--sans); }
+.compare-card-answers dl { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
+.compare-card-answers dt { font-size: 0.75rem; }
+.compare-card-answers dd { text-align: left; color: var(--text); }
+.compare-card-answers dd + dt { margin-top: 0.35rem; }
+.compare-card-answers dd.yes { color: var(--ok); }
+.compare-card-answers dd.no { color: var(--alarm); }
+.compare-card-answers dd.partial { color: var(--warn); }
+
+/* The short route's branch panel ------------------------------------------- */
+
+.branch-list { list-style: none; margin: 0.6rem 0 0; padding: 0; display: grid; gap: 0.6rem; }
+.branch-item {
+  border: 1px solid color-mix(in oklab, var(--border) 62%, var(--panel));
+  border-radius: 10px;
+  background: var(--raised);
+  padding: 0.6rem 0.8rem;
+}
+#app .branch-link { font-size: 1rem; font-weight: 600; text-decoration: none; }
+#app .branch-link:hover { text-decoration: underline; text-decoration-thickness: 2px; }
+.branch-destination { margin: 0.15rem 0 0; }
+
+/* Reference: the two provenance tables ------------------------------------- */
+
+.provenance-note { color: var(--text-dim); }
+/* A provenance label is a hyphenated compound, so it has natural break points and
+   does not need the `anywhere` the tag carries in prose — where it may sit beside a
+   commit hash, which has none. Inside a table cell `anywhere` is destructive: it
+   drops the column's min-content width to a single character, the table then never
+   exceeds its scroller, the scroller never scrolls, and sixteen rows set themselves
+   six characters wide. */
+.provenance-table td .provenance-tag,
+.datasets-table td .provenance-tag { overflow-wrap: normal; }
+.provenance-table th, .datasets-table th { white-space: nowrap; }
+
+/* First viewport ----------------------------------------------------------- */
+
+/* A paragraph's bottom margin is spacing between paragraphs. As the last child of a
+   box it is spacing between the text and the box, which the padding already provides,
+   and on a phone it was 12.8px repeated at the foot of the hero, the why-it-matters
+   panel and the thesis — 38px of nothing between the description and the first thing
+   a visitor can press. */
+.cl-hero-main > *:last-child,
+.cl-hero-why > *:last-child,
+.thesis > *:last-child,
+.cta-row > *:last-child { margin-bottom: 0; }
+
+/* `.thesis-headline` declares its own size and has never once been allowed to use it:
+   `#app h2` is a heavier selector, so the headline has always taken the generic heading
+   ramp instead. Restating it at matching weight is a repair, not a redesign — at a
+   phone width the difference is 18.4px against the 16.8px the class asks for, and at a
+   laptop 24px against 23.2px. */
+#app .thesis-headline { font-size: clamp(1.05rem, 2.6vw, 1.45rem); }
+
+@media (max-width: 640px) {
+  /* `Run the proof` is the point of the first viewport, and on a 390x844 phone it
+     started 20px below the fold. The cause is structural rather than typographic: in a
+     column the why-it-matters panel is 190px of context standing between the claim and
+     the only thing on the page a visitor can press. It is an <aside> — complementary by
+     definition, holding no control and no part of the argument the thesis makes — so on
+     a phone it is met after the action instead of before it.
+
+     `display: contents` dissolves the hero's own box so its three children become items
+     of the page column and can be ordered against the thesis and the call to action.
+     Nothing is hidden, clipped, shortened or moved out of the tab order: the aside is
+     the only element that moves relative to the source order and it contains nothing
+     focusable, so the reading order and the focus order still agree everywhere a
+     keyboard can reach. The hero's own margins and gap go with its box, so the spacing
+     they provided is restated on the children below. */
+  #app { display: flex; flex-direction: column; }
+  .cl-hero { display: contents; }
+  .cl-hero-main { order: 1; margin-top: 1rem; }
+  .lab-bar { order: 2; flex: 0 0 auto; margin: 0.5rem 0 1rem; }
+  .thesis { order: 3; }
+  .cta-row { order: 4; }
+  .cl-hero-why { order: 5; margin-bottom: 1.5rem; }
+  #chapters { order: 6; }
+  main { order: 7; }
+
+  /* Whatever is left of the first viewport is spacing, and a phone column is the one
+     place this page has none to spare. Nothing here removes a word or a control. */
+  .cl-hero-desc { font-size: 0.95rem; line-height: 1.45; }
+  .cl-hero-why { padding: 0.65rem 0.8rem; }
+  .cl-hero-why-text { line-height: 1.45; }
+  .thesis { padding: 0.85rem 0.9rem; margin-bottom: 1rem; }
+  .thesis-headline { line-height: 1.3; margin-bottom: 0.45rem; }
+  .thesis-precise { line-height: 1.45; }
+  .cta-row { gap: 0.5rem; margin-bottom: 1.1rem; }
+  /* The reset lives beside four primary actions in Act V; stretched to the full width
+     of a phone it reads as a fifth one. `.controls` is a stretch column here, so the
+     cross-axis size has to be released as well as the width. */
+  .controls > .reset-control, .controls > .identity-copy { align-self: flex-start; }
 }

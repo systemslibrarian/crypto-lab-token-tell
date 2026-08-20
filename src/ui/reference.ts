@@ -5,6 +5,13 @@
  * disbelieve the page should be able to find, here, exactly which component is faithful
  * to what, which numbers were measured rather than derived, and which questions this lab
  * could not answer.
+ *
+ * The limitations are the load-bearing part and none of them may be dropped, so they are
+ * held in a list the section counts rather than in markup where a deletion would go
+ * unnoticed. The provenance table is given a floor width for the same reason a table is
+ * used at all: four columns squeezed to a character per line at a phone width are not a
+ * disclosure, they are a formality, and this is the one table on the page a sceptical
+ * reader is most likely to actually read.
  */
 
 import attacks from '../data/pinned/attacks.json';
@@ -15,7 +22,9 @@ import testVectors from '../data/pinned/test-vectors.json';
 import texts from '../data/pinned/texts.json';
 import tokenizerMeta from '../data/pinned/tokenizer-meta.json';
 import { watermarkParams } from '../lab-config.ts';
-import { clear, el, integer, panel, provenanceTag, scroller, thesisStrip } from './dom.ts';
+import {
+  actHeader, clear, consequence, el, integer, panel, provenanceTag, scroller,
+} from './dom.ts';
 
 const REPO = 'https://github.com/systemslibrarian/crypto-lab-token-tell';
 
@@ -146,6 +155,44 @@ const PROVENANCE: ProvenanceEntry[] = [
   },
 ];
 
+/**
+ * What this lab could not do, in full.
+ *
+ * A list rather than nine hand-written list items, so the section can state how many there
+ * are and a deletion cannot pass as a re-layout. Every entry here is load-bearing: the
+ * C2PA-shaped qualification and the non-distortionary scope in particular are the two
+ * sentences that stop the rest of the page overclaiming.
+ */
+const LIMITATIONS: string[] = [
+  'The scoring statistic implemented here is the mean g-score. It is not the production ' +
+  'learned or Bayesian detector, which is what the paper’s headline results use and what ' +
+  'both reference implementations ship.',
+  'The pinned distributions and texts come from GPT-2 with temperature 1.0 and top-k 40 ' +
+  'applied, not from a production-scale model. Behaviour at scale differs; in particular ' +
+  'larger models tend to be lower entropy, which the paper notes reduces watermarking ' +
+  'strength.',
+  'The demo keys are published in this repository — they are the reference ' +
+  'implementation’s own default configuration. Real deployment requires the watermark ' +
+  'configuration be held secret; a published key means the mark can be replicated or ' +
+  'removed by anyone.',
+  'This lab implements the NON-DISTORTIONARY configuration: two competitors per match. ' +
+  'The paper proves the distortionary case is a different animal (its Theorem 19 shows ' +
+  'N > 2 is distortionary) and this lab makes no claims about it.',
+  'The C2PA panel is C2PA-SHAPED, not conformant: no JUMBF structures, no COSE claim ' +
+  'signatures, no certificate chains, no trust-list validation and no Conformance ' +
+  'Program status.',
+  'No claim is made about detecting any vendor’s output. This detector reads the ' +
+  'configuration published here and nothing else.',
+  'Every threshold on this page is specific to this configuration, this model and this ' +
+  'corpus of 48 texts per class. A 1% threshold estimated from 48 samples rests on the ' +
+  'single highest of them.',
+  'The thresholds are indexed by token count, while the evidence is indexed by scored ' +
+  'positions. For a degenerate text these diverge sharply, which Act III measures rather ' +
+  'than hides.',
+  'The empirical null measured here is over a single model and prompt style. It is not a ' +
+  'general statement about how the mean g-score behaves.',
+];
+
 interface Source {
   readonly title: string;
   readonly detail: string;
@@ -236,42 +283,19 @@ const SOURCES: Source[] = [
 
 export function renderReference(root: HTMLElement): void {
   clear(root);
-  root.append(
-    el('p', { class: 'act-kicker', text: 'Reference' }),
-    el('h2', { id: 'reference-heading', text: 'Limitations, maths, provenance and sources' }),
-    thesisStrip(),
-  );
+  root.append(...actHeader(
+    'reference',
+    'Reference',
+    'Limitations, maths, provenance and sources',
+    'Everything above this section is a claim. What follows is the material to check it ' +
+    'against: what this lab could not do, the statistic in full, which component is ' +
+    'faithful to what, the committed inputs, and the primary sources.',
+  ));
+
+  root.append(renderHeadline());
 
   root.append(panel('Limitations', [
-    el('ul', { role: 'list' }, [
-      li('The scoring statistic implemented here is the mean g-score. It is not the ' +
-        'production learned or Bayesian detector, which is what the paper’s headline ' +
-        'results use and what both reference implementations ship.'),
-      li('The pinned distributions and texts come from GPT-2 with temperature 1.0 and ' +
-        'top-k 40 applied, not from a production-scale model. Behaviour at scale differs; ' +
-        'in particular larger models tend to be lower entropy, which the paper notes ' +
-        'reduces watermarking strength.'),
-      li('The demo keys are published in this repository — they are the reference ' +
-        'implementation’s own default configuration. Real deployment requires the ' +
-        'watermark configuration be held secret; a published key means the mark can be ' +
-        'replicated or removed by anyone.'),
-      li('This lab implements the NON-DISTORTIONARY configuration: two competitors per ' +
-        'match. The paper proves the distortionary case is a different animal (its ' +
-        'Theorem 19 shows N > 2 is distortionary) and this lab makes no claims about it.'),
-      li('The C2PA panel is C2PA-SHAPED, not conformant: no JUMBF structures, no COSE ' +
-        'claim signatures, no certificate chains, no trust-list validation and no ' +
-        'Conformance Program status.'),
-      li('No claim is made about detecting any vendor’s output. This detector reads the ' +
-        'configuration published here and nothing else.'),
-      li('Every threshold on this page is specific to this configuration, this model and ' +
-        'this corpus of 48 texts per class. A 1% threshold estimated from 48 samples rests ' +
-        'on the single highest of them.'),
-      li('The thresholds are indexed by token count, while the evidence is indexed by ' +
-        'scored positions. For a degenerate text these diverge sharply, which Act III ' +
-        'measures rather than hides.'),
-      li('The empirical null measured here is over a single model and prompt style. It is ' +
-        'not a general statement about how the mean g-score behaves.'),
-    ]),
+    el('ul', { role: 'list' }, LIMITATIONS.map(li)),
   ], provenanceTag('demo', 'honest scoping')));
 
   root.append(panel('The statistic, in full', [
@@ -303,8 +327,13 @@ export function renderReference(root: HTMLElement): void {
       'Every algorithmic component, and what it is faithful to. A component labelled ' +
       'DEMO-SIMPLIFICATION says what was simplified and what the simplification costs.',
     ]),
+    // The prose columns carry `provenance-note` rather than `note`. `.note` sets
+    // `overflow-wrap: anywhere`, which is right for a paragraph that may contain a
+    // 64-character digest and catastrophic inside a table cell: it drops the cell's
+    // min-content width to one character, so the table never exceeds its scroller, the
+    // scroller never scrolls, and sixteen rows render a character per line down the phone.
     scroller('Implementation provenance table', [
-      el('table', {}, [
+      el('table', { class: 'provenance-table' }, [
         el('thead', {}, [el('tr', {}, [
           el('th', { text: 'Component' }),
           el('th', { text: 'Label' }),
@@ -315,7 +344,7 @@ export function renderReference(root: HTMLElement): void {
           el('td', { text: entry.component }),
           el('td', {}, [provenanceTag(entry.kind)]),
           el('td', { class: 'mono', text: entry.source }),
-          el('td', { class: 'note', text: entry.note }),
+          el('td', { class: 'provenance-note', text: entry.note }),
         ]))),
       ]),
     ]),
@@ -334,7 +363,7 @@ export function renderReference(root: HTMLElement): void {
       '.',
     ]),
     scroller('Pinned datasets', [
-      el('table', {}, [
+      el('table', { class: 'datasets-table' }, [
         el('thead', {}, [el('tr', {}, [
           el('th', { text: 'Dataset' }),
           el('th', { text: 'Contents' }),
@@ -400,6 +429,37 @@ export function renderReference(root: HTMLElement): void {
   ], provenanceTag('paper', 'primary sources')));
 }
 
+/**
+ * The one result this section is for: how much of the page is faithful to what.
+ *
+ * Counted from the provenance table below rather than typed, so the summary cannot drift
+ * away from the thing it summarises — a hand-written "sixteen components" would survive
+ * the day a seventeenth is added, and that is exactly the kind of small lie this section
+ * exists to make impossible.
+ */
+function renderHeadline(): HTMLElement {
+  const count = (kind: ProvenanceEntry['kind']): string =>
+    integer(PROVENANCE.filter((entry) => entry.kind === kind).length);
+  return el('div', { class: 'act-headline' }, [
+    el('p', { class: 'act-headline-label', text: 'Everything this page is built from' }),
+    el('p', {
+      class: 'act-headline-figure',
+      text: `${integer(PROVENANCE.length)} components, ${integer(LIMITATIONS.length)} limitations`,
+    }),
+    el('p', {
+      class: 'act-headline-detail',
+      text: `${count('reference')} components faithful to the reference implementation, ` +
+        `${count('paper')} to the paper, ${count('pinned')} pinned measurements and ` +
+        `${count('demo')} deliberate simplifications — each one named below, with what it ` +
+        'is faithful to and what the simplification costs.',
+    }),
+    consequence(
+      'Everything above this section is a claim',
+      'this is the material to check it against, including where it fails.',
+    ),
+  ]);
+}
+
 function li(text: string): HTMLElement {
   return el('li', { role: 'listitem', class: 'note', text });
 }
@@ -407,7 +467,7 @@ function li(text: string): HTMLElement {
 function dataRow(name: string, contents: string, script: string): HTMLElement {
   return el('tr', {}, [
     el('td', { class: 'mono', text: name }),
-    el('td', { class: 'note', text: contents }),
+    el('td', { class: 'provenance-note', text: contents }),
     el('td', { class: 'mono', text: script }),
   ]);
 }

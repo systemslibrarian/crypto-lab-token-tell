@@ -7,6 +7,15 @@
  * nothing else.
  *
  * Every number here is computed live, by the same functions the Hero called.
+ *
+ * The act has one result — the score card — and everything else in its first panel is the
+ * working behind it. That working used to sit open underneath, three thousand pixels of it,
+ * competing with the verdict it explains; it is now behind a disclosure, because a reader
+ * who wants the pipeline asks for it and a reader who wants the answer should not have to
+ * scroll past the derivation to be sure they have found it.
+ *
+ * The chosen sample is a deep link. A presenter demonstrating the paraphrase result should
+ * be able to hand over a URL rather than a URL and an instruction.
  */
 
 import attacks from '../data/pinned/attacks.json';
@@ -16,14 +25,17 @@ import { defaultConstruction, tokenizer, watermarkParams } from '../lab-config.t
 import { binomialUpperTail } from '../watermark/frequentist.ts';
 import { scoreTokens } from '../watermark/score.ts';
 import type { ScoreResult } from '../watermark/score.ts';
+import { resetButton, runGuarded } from './busy.ts';
 import { lineChart } from './chart.ts';
 import {
-  actHeader, button, clear, el, fixed, integer, labelledSelect, liveRegion, nextFrame,
-  panel, provenanceTag, readout, scroller,
+  actHeader, button, clear, disclosure, el, fixed, integer, labelledSelect, liveRegion,
+  nextFrame, panel, provenanceTag, readout, scroller,
 } from './dom.ts';
+import { param, setParam } from './mode.ts';
 import { renderScoreCard } from './score-card.ts';
 
 const GPT2_EOS = 50256;
+const SAMPLE_PARAM = 'sample';
 
 interface Preset {
   readonly id: string;
@@ -51,6 +63,16 @@ function presets(): Preset[] {
   return list;
 }
 
+/** The preset a deep link asked for, or none — the shipped state is no preset chosen. */
+function presetFromUrl(): Preset | null {
+  const requested = param(SAMPLE_PARAM);
+  const found = presets().find((preset) => preset.id === requested) ?? null;
+  // A parameter naming a sample this page does not hold is a link that lies about what the
+  // audience will see, so it is dropped rather than left beside the shipped text.
+  if (found === null && requested !== null) setParam(SAMPLE_PARAM, null);
+  return found;
+}
+
 export function renderAct2(root: HTMLElement): void {
   clear(root);
   root.append(...actHeader(
@@ -62,21 +84,24 @@ export function renderAct2(root: HTMLElement): void {
     'averages what is left.',
   ));
 
+  const linked = presetFromUrl();
+
   const textarea = el('textarea', {
     id: 'detector-input',
     spellcheck: 'false',
     'aria-describedby': 'detector-input-help',
   }) as HTMLTextAreaElement;
-  textarea.value = texts.samples.watermarked.text;
+  textarea.value = linked ? linked.text : texts.samples.watermarked.text;
 
   const { field: presetField, select: presetSelect } = labelledSelect(
     'detector-preset',
     'Load a committed sample',
     [{ value: '', label: 'Choose…' }, ...presets().map((p) => ({ value: p.id, label: p.label }))],
-    '',
+    linked ? linked.id : '',
   );
   presetSelect.addEventListener('change', () => {
     const preset = presets().find((p) => p.id === presetSelect.value);
+    setParam(SAMPLE_PARAM, preset ? preset.id : null);
     if (preset) {
       textarea.value = preset.text;
       run();
@@ -103,7 +128,13 @@ export function renderAct2(root: HTMLElement): void {
       constructionLabel: defaultConstruction.label,
     }));
     clear(breakdown);
-    breakdown.append(renderPipeline(tokenIds, result));
+    // Built on first open rather than eagerly: the token stream and the per-position table
+    // are the expensive half of this act, and nothing under test reads through the closed
+    // disclosure — the claims suite takes its statistics from the score card above it.
+    breakdown.append(disclosure(
+      'Show the pipeline, on this text',
+      () => [renderPipeline(tokenIds, result)],
+    ));
   };
 
   const retire = () => {
@@ -120,13 +151,27 @@ export function renderAct2(root: HTMLElement): void {
   };
   textarea.addEventListener('input', retire);
 
+  // A presenter leaves this box holding whatever the last demonstration typed into it, and
+  // the way back has to be one control rather than a reload — a reload would also take the
+  // depth, the anchor and the scroll position the audience is looking at.
+  const reset = () => {
+    presetSelect.value = '';
+    textarea.value = texts.samples.watermarked.text;
+    setParam(SAMPLE_PARAM, null);
+    run();
+  };
+
   root.append(panel('Score any text', [
     el('p', { id: 'detector-input-help', class: 'note' }, [
       'This detector reads only the watermark configuration published in this repository. ' +
       'Text from any real product will score as unmarked here, and that is the correct ' +
       'result rather than a limitation to work around.',
     ]),
-    el('div', { class: 'controls' }, [presetField, button('Score it', run, true)]),
+    el('div', { class: 'controls' }, [
+      presetField,
+      button('Score it', run, true),
+      resetButton('Reset the detector', reset),
+    ]),
     el('div', { class: 'field' }, [
       el('label', { for: 'detector-input', text: 'Text to score' }),
       textarea,
@@ -183,7 +228,6 @@ function renderPipeline(tokenIds: number[], result: ScoreResult): HTMLElement {
   const exact = result.score === null ? null : binomialUpperTail(result.gSum, result.gValueCount);
 
   return el('div', {}, [
-    el('h3', { text: 'The pipeline, on this text' }),
     el('h4', { text: '1 · Tokenize' }),
     readout([
       ['Characters in', integer([...(tok.decode(tokenIds))].length)],
@@ -344,6 +388,10 @@ function renderStrengthCurve(): HTMLElement {
     xLabel: 'tokens scored',
     yLabel: 'mean g',
     title: 'Detection strength against length',
+    takeaway:
+      'What to look for: the grey band is the range unmarked text occupies at each length, ' +
+      'and the distance from it up to the watermarked line is the evidence a decision would ' +
+      'have to rest on.',
     description:
       'Mean g-score against text length for this configuration. The grey band is two ' +
       'standard deviations of the unwatermarked corpus; the upper line is the watermarked ' +
@@ -352,11 +400,11 @@ function renderStrengthCurve(): HTMLElement {
   });
 
   const live = liveRegion('Recomputed detection statistics');
+  const progress = el('p', { class: 'progress', role: 'status', 'aria-live': 'polite' });
+
   const recompute = async () => {
-    recomputeButton.disabled = true;
     clear(live);
-    const progress = el('p', { class: 'progress' });
-    live.append(progress);
+    progress.textContent = 'Re-scoring both corpora…';
     const unmarked = nullCorpus.corpus_token_ids as number[][];
     const marked = (nullCorpus as { watermarked_corpus_token_ids?: number[][] })
       .watermarked_corpus_token_ids ?? [];
@@ -383,7 +431,7 @@ function renderStrengthCurve(): HTMLElement {
       ? markedScores.filter((s) => s >= threshold).length / markedScores.length
       : null;
 
-    progress.remove();
+    progress.textContent = 'Done.';
     live.append(readout([
       ['Recomputed at length', `${integer(length)} tokens`],
       ['Unwatermarked texts re-scored', integer(nullScores.length)],
@@ -400,9 +448,24 @@ function renderStrengthCurve(): HTMLElement {
       'rest of the page uses. If these disagree with the pinned values, the pinned values ' +
       'are wrong.',
     ]));
-    recomputeButton.disabled = false;
   };
-  const recomputeButton = button('Recompute in this browser', () => { void recompute(); });
+
+  // The guard owns the button state, the busy flag on the region and the recovery block if
+  // the run throws. It is not given the progress line: it empties what it was given the
+  // moment the work settles, and this line ends by saying the run finished.
+  const start = (): Promise<void> => runGuarded(recompute, {
+    controls: [recomputeButton, resetControl],
+    region: live,
+    onError: () => { progress.textContent = ''; },
+  });
+
+  const reset = () => {
+    clear(live);
+    progress.textContent = '';
+  };
+
+  const recomputeButton = button('Recompute in this browser', () => { void start(); });
+  const resetControl = resetButton('Reset the recomputation', reset);
 
   return panel('How much text does it take?', [
     el('p', { class: 'note' }, [
@@ -435,7 +498,8 @@ function renderStrengthCurve(): HTMLElement {
       'above the independence prediction, the exact p-value in the score card is optimistic ' +
       'at that length.',
     ]),
-    el('div', { class: 'controls' }, [recomputeButton]),
+    el('div', { class: 'controls' }, [recomputeButton, resetControl]),
+    progress,
     live,
   ], provenanceTag('pinned', 'matched corpora, 48 texts each'));
 }

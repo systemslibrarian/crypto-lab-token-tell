@@ -10,18 +10,27 @@
  * against pinned model revisions and the exact inputs and outputs are committed — but the
  * scores below are still recomputed in the browser by the same scorer, not read from the
  * capture.
+ *
+ * The act leads with the strongest measured result rather than with a button and three
+ * hundred pixels of prose: the paraphrase is the attack that decides how this page is
+ * read, and it is already computed when the section renders. Which of the two wordings it
+ * gets is chosen from the number, not from the expectation — a panel that only knows how
+ * to say "the evidence did not survive" is not a measurement.
  */
 
 import attacks from '../data/pinned/attacks.json';
 import texts from '../data/pinned/texts.json';
 import { defaultConstruction, tokenizer, watermarkParams } from '../lab-config.ts';
 import { scoreTokens } from '../watermark/score.ts';
+import type { ScoreResult } from '../watermark/score.ts';
+import { resetButton, runGuarded } from './busy.ts';
 import { lineChart } from './chart.ts';
 import {
-  actHeader, button, clear, el, fixed, integer, liveRegion, nextFrame, panel,
-  provenanceTag, readout, scroller,
+  actHeader, button, clear, consequence, disclosure, el, fixed, integer, liveRegion,
+  nextFrame, panel, provenanceTag, readout, scroller,
 } from './dom.ts';
 import { thresholdForLength } from './score-card.ts';
+import type { ThresholdInfo } from './score-card.ts';
 
 const GPT2_EOS = 50256;
 const STRENGTHS = [0.01, 0.05, 0.1, 0.25, 0.5];
@@ -47,9 +56,46 @@ export function renderAct4(root: HTMLElement): void {
     'measured change is what appears — including where the evidence survives.',
   ));
 
-  root.append(renderLiveAttacks());
-  root.append(renderPinnedAttacks());
+  const pinned = scorePinnedAttacks();
+  const paraphrase = pinned.find((entry) => entry.id === 'paraphrase');
+  if (paraphrase) root.append(renderHeadline(paraphrase));
+
+  const pinnedPanel = renderPinnedAttacks(pinned);
+  root.append(renderLiveAttacks(pinnedPanel.reset));
+  root.append(pinnedPanel.node);
   root.append(renderTheory());
+}
+
+/**
+ * The one result this act is for: what a real paraphrase model did to the evidence.
+ *
+ * The score, the score it came down from and the threshold it is being judged against are
+ * all stated together, because a number that has moved is not a result until the reader
+ * knows what it moved from and what it has to clear.
+ */
+function renderHeadline(entry: PinnedAttack): HTMLElement {
+  const before = entry.before.score;
+  const after = entry.after.score;
+  const direction = after !== null && before !== null && after < before ? 'down from' : 'from';
+  return el('div', { class: 'act-headline' }, [
+    el('p', {
+      class: 'act-headline-label',
+      text: 'What a real paraphrase did to the evidence',
+    }),
+    el('p', { class: 'act-headline-figure', text: fixed(after) }),
+    el('p', {
+      class: 'act-headline-detail',
+      text: `Mean g-score after the paraphrase, ${direction} ${fixed(before)} before it, ` +
+        `against a threshold of ${fixed(entry.threshold.value ?? Number.NaN)} at a 1% ` +
+        'false-positive rate.',
+    }),
+    consequence(
+      'Rewrote the text with a real model, keeping the meaning',
+      entry.stillDetected
+        ? 'the evidence stayed above the threshold.'
+        : 'the evidence fell below the threshold and the detector could no longer find it.',
+    ),
+  ]);
 }
 
 interface AttackRun {
@@ -60,15 +106,15 @@ interface AttackRun {
   scoredPositions: number;
 }
 
-function renderLiveAttacks(): HTMLElement {
+function renderLiveAttacks(resetPinned: () => void): HTMLElement {
   const output = liveRegion('Attack sweep results');
   const chartHost = el('div');
   const tableHost = el('div');
   const progress = el('p', { class: 'progress', role: 'status', 'aria-live': 'polite' });
 
-  const run = async () => {
-    runButton.disabled = true;
+  const sweep = async () => {
     clear(output); clear(chartHost); clear(tableHost);
+    progress.textContent = 'Sweeping…';
     const tok = tokenizer();
     const original = tok.encode(texts.samples.watermarked.text);
     const baseline = scoreTokens(original, watermarkParams, defaultConstruction, GPT2_EOS);
@@ -153,6 +199,9 @@ function renderLiveAttacks(): HTMLElement {
       xLabel: 'percent of tokens transformed',
       yLabel: 'mean g',
       title: 'Score against transformation strength',
+      takeaway:
+        'What to look for: how far each line has fallen toward 0.5 by the time half the ' +
+        'tokens are transformed. That distance is the evidence the attack removed.',
       description:
         'Mean g-score against the fraction of tokens transformed, for truncation ' +
         '(dropping the tail), deletion (dropping tokens at random) and replacement ' +
@@ -199,10 +248,36 @@ function renderLiveAttacks(): HTMLElement {
         'chose.',
       ]),
     );
-    runButton.disabled = false;
+
+    const strongest = STRENGTHS[STRENGTHS.length - 1];
+    const deletionMean = meanAt(results.deletion, strongest);
+    const moved = deletionMean < (baseline.score ?? 0.5) ? 'fell' : 'rose';
+    output.append(consequence(
+      `Deleted ${Math.round(strongest * 100)}% of the tokens at random`,
+      `the mean score ${moved} from ${fixed(baseline.score)} to ${fixed(deletionMean)}.`,
+    ));
   };
 
-  const runButton = button('Run the sweep', () => { void run(); }, true);
+  /**
+   * The guard disables both controls, marks the results region busy and replaces a
+   * half-written sweep with something a reader can act on if the run throws. The progress
+   * line stays out of its hands: it ends by saying the sweep completed, and the guard's
+   * contract is to empty what it was given the moment the work settles.
+   */
+  const start = (): Promise<void> => runGuarded(sweep, {
+    controls: [runButton, resetControl],
+    region: output,
+    onError: () => { progress.textContent = ''; },
+  });
+
+  const reset = () => {
+    clear(output); clear(chartHost); clear(tableHost);
+    progress.textContent = '';
+    resetPinned();
+  };
+
+  const runButton = button('Run the sweep', () => { void start(); }, true);
+  const resetControl = resetButton('Reset the attacks', reset);
 
   return panel('Live attacks: truncation, deletion, replacement', [
     el('p', { class: 'note' }, [
@@ -217,7 +292,7 @@ function renderLiveAttacks(): HTMLElement {
       'cheap the attack is. The semantically-aware attacks on this page are the ' +
       'back-translation and the paraphrase below, both run through real models.',
     ]),
-    el('div', { class: 'controls' }, [runButton]),
+    el('div', { class: 'controls' }, [runButton, resetControl]),
     progress,
     output,
     chartHost,
@@ -225,21 +300,48 @@ function renderLiveAttacks(): HTMLElement {
   ], provenanceTag('paper', 'scored by the same detector'));
 }
 
-/** Back-translation and paraphrase: pinned inputs and outputs, recomputed scores. */
-function renderPinnedAttacks(): HTMLElement {
-  const tok = tokenizer();
-  const rows: HTMLElement[] = [];
-  const details: HTMLElement[] = [];
+type Transformation = (typeof attacks.transformations)[number];
 
-  for (const transformation of attacks.transformations) {
+interface PinnedAttack {
+  readonly id: string;
+  readonly transformation: Transformation;
+  readonly before: ScoreResult;
+  readonly after: ScoreResult;
+  readonly threshold: ThresholdInfo;
+  readonly stillDetected: boolean;
+}
+
+/**
+ * Scored once, read twice: by the headline above the act and by the table below it. The
+ * alternative — scoring the same committed text in two places — is how two parts of one
+ * page come to disagree about a number they both claim to have measured.
+ */
+function scorePinnedAttacks(): PinnedAttack[] {
+  const tok = tokenizer();
+  return attacks.transformations.map((transformation) => {
     const before = scoreTokens(tok.encode(transformation.original_text), watermarkParams,
       defaultConstruction, GPT2_EOS);
     const after = scoreTokens(tok.encode(transformation.transformed_text), watermarkParams,
       defaultConstruction, GPT2_EOS);
     const threshold = thresholdForLength(after.tokenCount);
-    const stillDetected = after.score !== null && threshold.value !== null
-      && after.score >= threshold.value;
+    return {
+      id: transformation.id,
+      transformation,
+      before,
+      after,
+      threshold,
+      stillDetected: after.score !== null && threshold.value !== null
+        && after.score >= threshold.value,
+    };
+  });
+}
 
+/** Back-translation and paraphrase: pinned inputs and outputs, recomputed scores. */
+function renderPinnedAttacks(pinned: PinnedAttack[]): { node: HTMLElement; reset: () => void } {
+  const rows: HTMLElement[] = [];
+  const details: HTMLElement[] = [];
+
+  for (const { transformation, before, after, threshold, stillDetected } of pinned) {
     rows.push(el('tr', {}, [
       el('td', { text: transformation.name }),
       el('td', { class: 'num', text: fixed(before.score) }),
@@ -250,28 +352,30 @@ function renderPinnedAttacks(): HTMLElement {
       el('td', { text: stillDetected ? 'above threshold' : 'below threshold' }),
     ]));
 
-    details.push(el('details', {}, [
-      el('summary', { text: `${transformation.name} — inputs, outputs and provenance` }),
-      readout([
-        ['Instructions', transformation.instructions],
-        ...transformation.hops.map((hop) => [
-          `Model · ${hop.hop}`, `${hop.model_id} @ ${hop.model_revision}`,
-        ] as [string, string]),
-        ['Parameters', JSON.stringify(transformation.parameters)],
-        ['Captured', attacks.provenance.capture_timestamp_utc],
-        ['Reference score before', fixed(transformation.reference_score_original.score)],
-        ['Reference score after', fixed(transformation.reference_score_transformed.score)],
-      ], `${transformation.name} provenance`),
-      el('h4', { text: 'Text before' }),
-      scroller(`${transformation.name} original text`, [
-        el('p', { class: 'mono', text: transformation.original_text })]),
-      el('h4', { text: 'Text after' }),
-      scroller(`${transformation.name} transformed text`, [
-        el('p', { class: 'mono', text: transformation.transformed_text })]),
-    ]));
+    details.push(disclosure(
+      `${transformation.name} — inputs, outputs and provenance`,
+      () => [
+        readout([
+          ['Instructions', transformation.instructions],
+          ...transformation.hops.map((hop) => [
+            `Model · ${hop.hop}`, `${hop.model_id} @ ${hop.model_revision}`,
+          ] as [string, string]),
+          ['Parameters', JSON.stringify(transformation.parameters)],
+          ['Captured', attacks.provenance.capture_timestamp_utc],
+          ['Reference score before', fixed(transformation.reference_score_original.score)],
+          ['Reference score after', fixed(transformation.reference_score_transformed.score)],
+        ], `${transformation.name} provenance`),
+        el('h4', { text: 'Text before' }),
+        scroller(`${transformation.name} original text`, [
+          el('p', { class: 'mono', text: transformation.original_text })]),
+        el('h4', { text: 'Text after' }),
+        scroller(`${transformation.name} transformed text`, [
+          el('p', { class: 'mono', text: transformation.transformed_text })]),
+      ],
+    ));
   }
 
-  return panel('Pinned attacks: back-translation and paraphrase', [
+  const node = panel('Pinned attacks: back-translation and paraphrase', [
     el('p', { class: 'note' }, [
       'These need a model, so they were run once offline and committed with the exact ' +
       'inputs, outputs, model revisions and parameters. The scores below are recomputed ' +
@@ -294,6 +398,15 @@ function renderPinnedAttacks(): HTMLElement {
     ]),
     ...details,
   ], provenanceTag('pinned', 'real translation and paraphrase models'));
+
+  // A disclosure a presenter opened is state the next audience inherits, so the act's
+  // reset closes both rather than leaving the provenance hanging open.
+  return {
+    node,
+    reset: () => {
+      for (const entry of details) entry.removeAttribute('open');
+    },
+  };
 }
 
 function renderTheory(): HTMLElement {

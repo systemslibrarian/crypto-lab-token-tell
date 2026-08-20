@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:a11y": "playwright test",
+    "make:social": "node tools/make-social-image.mjs",
     "verify": "node verification/verifier/verify.mjs",
     "verify:manifest": "node verification/tools/validate-manifest.mjs verification/manifest.yaml"
   },

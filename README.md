@@ -30,13 +30,64 @@ rather than the learned Bayesian detector both reference implementations ship, a
 C2PA panel is C2PA-*shaped* rather than conformant: no JUMBF, no COSE, no certificate
 chains, no trust lists. Every one of those limits is stated on the page as well as here.
 
+## Two Routes Through One Page
+
+A segmented control in the header, under the title, chooses how much of the lab is on
+screen. Beside it sit the two other controls a presenter needs: **Copy link**, and a reset
+for the whole page.
+
+- **Demo** — the 90-second route, and what a first-time visitor is given: the hero
+  experiment, the two signing acts, a four-question comparison, and a panel that branches
+  into the rest. Five chapters.
+- **Full lab** — Acts I to VII in order plus the reference section: tournament sampling,
+  the detector opened up, entropy, the attack sweeps, the wrong-key sweep, the one-bit key
+  mutation, the cross-implementation comparison, the ten-row comparison table, and the
+  limitations, maths, vectors and sources. Nine chapters.
+
+The depth is a display decision over one page, not a second copy of it. Elements only an
+auditor needs carry `data-depth="lab"`, the few compact restatements written for the short
+route carry `data-depth="demo"`, and everything shared carries neither; Demo applies the
+`hidden` attribute to the first set and nothing else. Every act mounts and computes at
+both depths, and the smoke suite asserts mounting and visibility separately, so a second,
+shorter render path — the one change that would make the page dishonest, because only one
+of the two copies would be the code under test — would fail it.
+
+Stated plainly, because it is what the short route costs: **Demo hides most of the page.**
+Five of the nine sections are hidden, along with three panels inside the hero — the
+wrong-key sweep, the one-bit key mutation and the cross-implementation comparison — and
+Act VII's stripping-versus-regeneration experiment. At a laptop width the short route is
+6,400 px of document against the full lab's 22,050; on a phone, 10,785 against 39,801.
+
+Three ways back to all of it: the **Full lab** segment; `?mode=lab` in the address; or the
+"Choose the depth" panel that closes the short route, whose four questions each open the
+full lab at the act that answers them.
+
+Nothing that qualifies a claim is ever hidden. The C2PA-shaped-not-conformant panel, the
+implementation divergence, the caveats printed on the face of each result card, Act VI's
+signed falsehood and every provenance tag are visible at both depths.
+
+The depth is remembered in `localStorage` under `token-tell:mode`, and a `?mode=` in the
+address outranks the stored preference, so a link handed to someone else opens at the
+depth it names rather than at whatever they last looked at.
+
+A sticky chapter control lists the beats of the current depth and marks the one on screen:
+a single row of chapters on a desktop, and below 640 px a compact selector with previous
+and next controls, because the nine stacked chips it replaced were 322 px of navigation
+displacing the thing being navigated to.
+
 ## Exhibits
 
+The short route shows exhibits 1, 6, 7 and 8 — the first without its sweeps, the eighth
+compressed to four of its ten questions. Full lab shows all eight whole and in order, plus
+the reference section: the limitations, the maths, the test vectors and the sources.
+
 1. **Same text, different key.** One watermarked passage, three runs of one detector: the
-   configured key, a wrong key on byte-identical input, and an unwatermarked control. Then
-   the same experiment across up to 300 random keys, with the measured spread shown beside
-   the spread the exact null predicts. A one-bit key mutation, and the same bytes read by
-   the other published implementation.
+   configured key, a wrong key on byte-identical input, and an unwatermarked control. Each
+   is a result card — verdict, mean, threshold, exact p-value, one sentence saying what
+   changed — with the rest of the audit trail behind **Show calculation**. Then the same
+   experiment across up to 300 random keys, with the measured spread shown beside the
+   spread the exact null predicts. A one-bit key mutation, and the same bytes read by the
+   other published implementation.
 2. **The hidden choice.** Tournament sampling over a pinned GPT-2 distribution. Up to
    eight layers draw the literal bracket over 2^m candidates; above that the view becomes
    layered, and the page says plainly that neither the browser nor any real implementation
@@ -56,8 +107,120 @@ chains, no trust lists. Every one of those limits is stated on the page as well 
 7. **A signature can sign a lie.** A plainly false statement, signed with a real key, and
    verified.
 8. **What each mechanism proves.** The symmetric-secret / asymmetric-public distinction,
-   a ten-row comparison whose second row is load-bearing, and stripping versus
-   regeneration measured side by side.
+   a ten-row comparison whose second row is load-bearing — four of those ten questions on
+   the short route, selected out of the same data rather than restated — and stripping
+   versus regeneration measured side by side.
+
+## Live Demo
+
+<https://systemslibrarian.github.io/crypto-lab-token-tell/>
+
+It opens on the short route. Press **Run the proof**, then sign the same words, flip a
+byte, strip the manifest, sign a false statement and watch it verify. Switch to **Full
+lab** to paste your own text into the detector, run the wrong-key sweep, drag the
+tournament depth from 1 to 30 and sweep the attacks. Every number on the page is computed
+in the browser as you use it.
+
+## The 90-Second Demo
+
+The short route is built around this script. Each beat ends with a consequence line the
+page prints itself, so the closing comparison is earned rather than asserted.
+
+**0:00 — Run the proof.** The button sits in the first screen. One watermarked passage is
+scored three times: under the configured key, under a wrong key given byte-identical
+input, and once on unwatermarked text. The digests above the cards are what makes the
+first two runs the same experiment.
+→ *Changed only the secret → the watermark verdict disappeared.*
+
+**0:25 — Sign the same bytes.** Act V signs on arrival; flip one byte, then strip the
+manifest, then reset.
+→ *Signed these exact bytes → integrity verification passed.*
+→ *Changed one byte → integrity verification failed.*
+→ *Removed the manifest → there was nothing left to verify.*
+
+**0:55 — Sign something false.** Act VI signs a plainly false statement with a real key,
+and the signature verifies.
+→ *Signed a lie → integrity passed; truth remained unanswered.*
+
+**1:15 — The comparison.** Four questions rather than ten, led by **WHO CAN VERIFY?**:
+who can verify, whether the evidence is statistical or binary, whether it survives
+manifest removal, and whether it proves the content is true.
+→ *Asked who can verify → only the issuer can check a watermark; anyone can check a
+signature.*
+
+**1:40 — Choose the depth.** Four branches, each of which switches to Full lab and lands
+on the act that answers it: how the hidden token choice works (Act I), how to read the
+detector (Act II), how robust it is (Acts III and IV), and whether the claims can be
+verified (the reference section).
+
+## Deep Links
+
+Every control that changes what an audience sees writes its state into the address bar
+with `replaceState`, so the address is always a working link to what is on screen and
+never a lie about it. **Copy link** copies exactly that; if the browser refuses the
+clipboard — it is unavailable outside a secure context — the link is rendered as selected
+text to copy by hand rather than failing silently.
+
+| Parameter | Values | Effect |
+| --- | --- | --- |
+| `mode` | `demo`, `lab` | The depth. Absent: the stored preference, or Demo on a first visit. |
+| `sample` | `watermarked`, `control`, `watermarked_alt`, `back-translation`, `paraphrase` | Opens Act II's detector on that pinned text, already scored. |
+| `scenario` | `high_entropy`, `low_entropy`, `mid_entropy` | Opens Act I's tournament on that pinned distribution. |
+| `sign` | `tampered`, `stripped` | Opens Act V with the hard binding broken, or with the manifest removed, instead of signed and intact. |
+
+The anchors are `#hero-experiment`, `#act-1` through `#act-7`, `#reference`, and
+`#branch-depth` for the panel that closes the short route. A section the current depth
+hides cannot be reached by anchor alone, so a link into Acts I to IV or the reference
+section needs `mode=lab` beside it; the branch links inside the page switch the depth for
+you. Every anchor lands its heading clear of both sticky bars, which the visual suite
+checks at four widths rather than trusting a scroll margin.
+
+A value the page does not hold — a sample it has no text for, a scenario it has no
+distribution for — is dropped from the address rather than left lying beside a different
+experiment. `sign` is honoured on a cold load only and cleared afterwards, so the global
+reset returns Act V to signed and intact.
+
+A worked example, ready to paste:
+
+```
+https://systemslibrarian.github.io/crypto-lab-token-tell/?mode=lab&sample=paraphrase#act-2
+```
+
+That opens the full lab with the detector already showing the pinned paraphrase attack,
+scored against the threshold measured here, scrolled to Act II. For the short route,
+`?mode=demo&sign=tampered#act-5` opens on the signing act with the hard binding already
+broken — the state to have on screen before an audience arrives, rather than one a
+presenter has to reach live.
+
+## Presenter Reliability
+
+The lab is deterministic, and a demo can still be derailed by an act left tampered or by a
+machine that will not sign. Each of the following is a rendering that exists and is
+tested, not an intention:
+
+- **Reset without reloading.** Every mutable experiment carries its own reset — *Reset the
+  sweep*, *Reset the tournament*, *Reset the detector*, *Reset the recomputation*, *Reset
+  the corpus scoring*, *Reset the attacks*, *Reset act* in Acts V and VI, *Reset and
+  re-run both* in Act VII — and the icon in the header rebuilds all of them at once and
+  says so through a live region. A reload would also discard the depth, the anchor and the
+  scroll position the audience is looking at, which is why nothing on the page needs one.
+- **Mutation controls stay off until there is something to mutate.** Act V's flip, strip
+  and re-verify controls are disabled until a manifest exists, with the reason stated
+  beside them rather than left to be inferred from a grey button.
+- **Busy is a word, not a spinner.** Every asynchronous run marks its region `aria-busy`
+  and prints what it is doing — `Signing with ECDSA P-256…`, `Scored 140 of 300 wrong
+  keys.` — because a spinner is invisible to a screen reader and to a contrast oracle
+  alike, and because it is the long runs that need explaining.
+- **A failure is answered on the page.** If WebCrypto or a long calculation throws, the
+  panel replaces its half-written output with what went wrong and a **Try again** that
+  clears the notice before retrying, and the controls come back enabled. The case this
+  exists for is real: `crypto.subtle` is undefined outside a secure context, so a lab
+  opened over plain HTTP on a conference network loses the signing half — and it says so
+  instead of leaving a dead button beside a blank panel. The detector half is independent
+  of WebCrypto and keeps working.
+- **Reduced motion.** The hero's staged reveal is a sequence over results that were
+  already computed, never the source of them. Under `prefers-reduced-motion: reduce` all
+  three cards are final the moment the button is pressed, and nothing on the page animates.
 
 ## When to Use It
 
@@ -70,14 +233,6 @@ chains, no trust lists. Every one of those limits is stated on the page as well 
 - Do **not** use it to check whether any real product watermarked a piece of text: it
   reads the keys published here and nothing else, and it is a demo app that does not
   provide hardened operational controls.
-
-## Live Demo
-
-<https://systemslibrarian.github.io/crypto-lab-token-tell/>
-
-Paste your own text into the detector, run the wrong-key sweep, drag the tournament depth
-from 1 to 30, sweep the attacks, sign something false and watch it verify. Every number on
-the page is computed in the browser as you use it.
 
 ## What Can Go Wrong
 
@@ -92,6 +247,9 @@ the page is computed in the browser as you use it.
   configuration, this model and a corpus of 48 texts per class. None generalises.
 - **Taking a signature for a fact-check.** Act VI signs a false statement with a real key,
   and it verifies.
+- **Mistaking the short route for the whole argument.** Demo is a presentation order over
+  the same evidence, not a lighter claim. The panels it hides are where the numbers are
+  checked, and the demo says so on the page and offers the way through.
 
 ## Real-World Usage
 
@@ -111,6 +269,9 @@ chain can check. That difference is the subject of the last act.
 npm install
 npm run dev
 ```
+
+The dev server serves under the deployed base path, so the app is at
+<http://localhost:5173/crypto-lab-token-tell/> rather than at the origin root.
 
 To reproduce the pinned data (needs Python, torch and the pinned model revisions):
 
@@ -149,7 +310,17 @@ pip install -r tools/requirements-transformers.txt  # capture_sampling_table.py 
 npm test              # 214 unit tests, including differential vectors from both references
 npm run verify        # the independent verifier: 112 checks, sharing no module with the lab
 npm run verify:manifest
-npm run test:a11y     # axe WCAG 2.1 A/AA gate plus the claims suite
+npm run test:a11y     # all four browser suites, 45 tests, against the production build
+```
+
+`npm run test:a11y` builds the site and serves the build with `vite preview` before it
+starts, so what passes there is what ships. The four suites can be run one at a time:
+
+```
+npx playwright test e2e/a11y.spec.ts     # axe WCAG 2.1 A/AA plus further oracles; slow
+npx playwright test e2e/claims.spec.ts   # 20 tests that re-derive what the page says
+npx playwright test e2e/smoke.spec.ts    # every act mounts and computes at either depth
+npx playwright test e2e/visual.spec.ts   # 21 geometry tests at four viewports; ~40 s
 ```
 
 The unit suite is differential, not self-referential: every expectation for the hash, the
@@ -172,9 +343,90 @@ and the two implementations, and the seven open questions this build could not c
 the same claims, and [`verification/README.md`](verification/README.md) explains why the
 verifier is written the way it is.
 
+## Link Preview and Icons
+
+```
+npm run make:social
+```
+
+That regenerates five committed files in `public/`: `og.png` (1200x630), `icon.svg`, and
+`icon-180.png`, `icon-192.png` and `icon-512.png` rasterised from it.
+
+The preview card is the experiment, not a picture of it. Every figure on it — the three
+mean g-scores, the 1% false-positive threshold, and the SHA-256 that runs 1 and 2 share —
+is read out of `src/data/pinned/` at generation time, and the verdicts are derived by
+comparing each score against the threshold rather than typed in. If a pinned value is
+missing the script stops and names the path it wanted; if a score ever fell on the wrong
+side of the threshold it stops rather than draw "Evidence" over a score that is not
+evidence. A social card is read without the page, so it is the easiest place in a project
+to state something the project cannot support.
+
+The icons replace an emoji data URI. An emoji is drawn by whichever font the reader's
+platform supplies, so the mark changed shape between a phone, a laptop and a projector;
+the replacement is rectangles in the lab's own accent pair, with no font dependency and
+enough weight to survive 16px. The card and the PNGs are committed rather than built in
+CI, because text is rasterised by the host's font stack: the same pinned inputs always
+give the same image, but not the same bytes on a different machine.
+
+Every asset path is relative (`./`), including in
+[`public/manifest.webmanifest`](public/manifest.webmanifest) — the site deploys under a
+GitHub Pages project subpath, where a root-absolute path 404s.
+
+### The Visual Contract
+
+The defect that produced [`e2e/visual.spec.ts`](e2e/visual.spec.ts) passed every gate this
+repository had. Every act mounted, every statistic re-derived, axe reported nothing, and
+the claims suite agreed with each number on the page — while the three figures the hero
+exists to compare rendered one character per line at an ordinary laptop width. The DOM was
+correct; only the geometry was wrong.
+
+So this suite asserts geometry and driven state, numerically, at 390 × 844, 768 × 1024,
+1052 × 923 and 1440 × 900, at both depths. It checks that:
+
+- the page opens at the top and never scrolls sideways, including with the comparison in
+  each of its shapes and with a question expanded;
+- **Run the proof** is inside the first screen at every width, below the sticky bars, and
+  is not covered by anything — hit-tested, because arithmetic can agree while something
+  floats over the button;
+- the first screen holds no blank band wider than 96 px, and no more than 40 px of nothing
+  where the hero's two halves meet once the layout is a column;
+- the chapter control stays under 56 px tall and paints exactly one of its two shapes;
+- no value in a result card, promoted or inside its opened calculation trail, is narrower
+  than eight characters of its own font, runs to more than two lines, or wraps at fewer
+  than four characters a line;
+- switching depth does not resize the result cards, so both depths are the same rendering;
+- every chapter jump and every cold deep link lands its heading below the sticky bars and
+  on screen, with the heading's own centre hit-testing to the heading;
+- signed, tampered, stripped and reset each render, and keyboard focus paints a ring;
+- the busy state disables every control and says so in words, with the real signature
+  slowed to a second and a half rather than faked;
+- a browser with no `crypto.subtle` gets a recovery and a working detector, with no
+  console error;
+- reduced motion shows three distinct final figures with no wait of any kind and nothing
+  animating, and the same press with motion allowed does stage content.
+
+**It does not compare screenshots against a stored baseline, and that is deliberate.** It
+takes focused screenshots — the hero summary, the signing act in each of its states, the
+comparison at both depths, the focus ring — and attaches them to the report for a person
+to look at:
+
+```
+npx playwright test e2e/visual.spec.ts --reporter=html && npx playwright show-report
+```
+
+This repository is developed on macOS and gated on ubuntu-latest, and a pixel baseline
+across those two font stacks fails on hinting, fallback faces and subpixel rounding rather
+than on the defect it was written to catch. A suite that fails for the wrong reason is
+worse than none, because the first thing it teaches its reader is to re-record the
+baseline. Every threshold above is therefore either relative to something the page itself
+supplies — the character advance of the value's own font, the measured height of the
+sticky bars, the viewport in use — or a distance the layout's own spacing rules fix, so
+the same numbers hold on a runner with other fonts. Nothing here checks whether the page
+is handsome; it checks that no result is clipped, vertical, overlapping or hidden.
+
 ## Performance
 
-The bundle is large for a lab of this kind — around 800 kB, 320 kB gzipped — and almost
+The bundle is large for a lab of this kind — around 830 kB, 330 kB gzipped — and almost
 all of it is data rather than code: the GPT-2 merge list the tokenizer is rebuilt from,
 and the two committed corpora that let the page recompute its own thresholds in the
 browser instead of asking you to trust them. That trade was made deliberately in favour of
@@ -184,7 +436,9 @@ Detection at the reference implementation's default depth of 30 costs about 390 
 per scored position, so a 320-token passage scores in a few milliseconds. The wrong-key
 sweep re-walks the sequence once per key and is chunked with a progress readout for that
 reason; the corpus passes score 48 texts each and take a second or two. Nothing on the
-page blocks on the network, and the whole lab works offline after the first visit.
+page blocks on the network, and the built site works offline after the first visit — the
+service worker is registered in production builds only, so the dev server never serves
+yesterday's bundle back to whoever is working on the page.
 
 ---
 

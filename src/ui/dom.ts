@@ -81,6 +81,59 @@ export function verdict(tone: VerdictTone, label: string, detail: string): HTMLE
   ]);
 }
 
+/** Text carried for a screen reader alone, where a glyph or a layout says it visually. */
+export function srOnly(text: string): HTMLElement {
+  return el('span', { class: 'sr-only', text });
+}
+
+/**
+ * The one-line closure at the end of a demo beat: what was changed, and what that did.
+ *
+ * The arrow is the whole sentence visually and useless aloud, so it is decorative and the
+ * relation is spelled out for a reader who hears the line instead of seeing it. Keeping
+ * the two halves in their own elements is what lets the change be stated in the page's
+ * voice and the effect be the part that carries the weight.
+ */
+export function consequence(change: string, effect: string): HTMLElement {
+  return el('p', { class: 'consequence' }, [
+    el('span', { class: 'consequence-change', text: change }),
+    srOnly(' leads to '),
+    el('span', { class: 'consequence-arrow', 'aria-hidden': 'true', text: '→' }),
+    el('span', { class: 'consequence-effect', text: effect }),
+  ]);
+}
+
+/**
+ * A disclosure whose body is built on first open.
+ *
+ * Deferring the build keeps the initial render honest about its cost — the calculation
+ * trails behind these summaries are the expensive part of several panels. The `eager`
+ * option exists because deferral is wrong wherever the hidden content is itself under
+ * test: the claims suite re-derives statistics by reading a `dt` and its `dd` through a
+ * closed `<details>`, and a body that has not been built yet reads as an empty string and
+ * silently turns an arithmetic check into a comparison against zero.
+ */
+export function disclosure(
+  summaryText: string,
+  build: () => Node[],
+  options: { class?: string; eager?: boolean } = {},
+): HTMLElement {
+  const body = el('div', { class: 'disclosure-body' });
+  const details = el('details', {
+    class: options.class ? `disclosure ${options.class}` : 'disclosure',
+  }, [el('summary', { text: summaryText }), body]);
+
+  let built = false;
+  const fill = (): void => {
+    if (built) return;
+    built = true;
+    body.append(...build());
+  };
+  if (options.eager) fill();
+  else details.addEventListener('toggle', () => { if (details.open) fill(); });
+  return details;
+}
+
 /** A definition-list readout. Every displayed statistic goes through here. */
 export function readout(rows: [string, string][], ariaLabel?: string): HTMLElement {
   const dl = el('dl');
@@ -196,11 +249,18 @@ export function actHeader(
   title: string,
   lede: string,
 ): HTMLElement[] {
+  const strip = thesisStrip();
+  // The claim is worth repeating to an auditor working through nine acts out of order,
+  // and worth stating once to a visitor being walked through five minutes of it. The hero
+  // keeps its strip in both depths; every later act carries the lab tag. The attribute
+  // name is the one `mode.ts` reads — it is written literally here so the helpers file
+  // stays free of a dependency on the mode.
+  if (id !== 'hero-experiment') strip.dataset.depth = 'lab';
   return [
     el('p', { class: 'act-kicker', text: kicker }),
     el('h2', { id: `${id}-heading`, text: title }),
     el('p', { class: 'act-lede', text: lede }),
-    thesisStrip(),
+    strip,
   ];
 }
 

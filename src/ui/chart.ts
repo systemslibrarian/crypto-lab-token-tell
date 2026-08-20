@@ -4,6 +4,12 @@
  * Drawn rather than imported so nothing on this page depends on a chart library reading
  * the numbers correctly. Every chart carries a text alternative that states the same
  * facts, because a picture of a distribution is not accessible on its own.
+ *
+ * A figure here has two pieces of prose and they do different jobs. The optional takeaway
+ * sits ABOVE the drawing and says what the reader is being asked to look at; the caption
+ * sits below and states what the drawing contains. Keeping them apart is what stops the
+ * same sentence being announced twice, and the takeaway is optional because a figure that
+ * needs no steer should not be given a decorative one.
  */
 
 import { el, fixed } from './dom.ts';
@@ -16,6 +22,14 @@ function svgEl(tag: string, attributes: Record<string, string>): SVGElement {
   return node;
 }
 
+/** Takeaway, drawing, caption — in that order, which is also the reading order. */
+function figure(takeaway: string | undefined, svg: SVGElement, caption: string): HTMLElement {
+  const children: Node[] = [];
+  if (takeaway) children.push(el('p', { class: 'chart-takeaway', text: takeaway }));
+  children.push(svg as unknown as Node, el('figcaption', { class: 'note', text: caption }));
+  return el('figure', { style: 'margin:0' }, children);
+}
+
 export interface HistogramOptions {
   readonly values: number[];
   readonly marker: { value: number; label: string } | null;
@@ -23,6 +37,8 @@ export interface HistogramOptions {
   readonly binCount?: number;
   readonly title: string;
   readonly xLabel: string;
+  /** One sentence, above the drawing, naming what the reader should see in it. */
+  readonly takeaway?: string;
 }
 
 /** A histogram of null scores with the observed score marked on the same axis. */
@@ -121,10 +137,7 @@ export function histogram(options: HistogramOptions): HTMLElement {
   if (secondaryMarker) drawMarker(secondaryMarker.value, secondaryMarker.label, 'marker-alt');
   if (marker) drawMarker(marker.value, marker.label, 'marker');
 
-  return el('figure', { style: 'margin:0' }, [
-    svg as unknown as Node,
-    el('figcaption', { class: 'note', text: describeHistogram(options) }),
-  ]);
+  return figure(options.takeaway, svg, describeHistogram(options));
 }
 
 function describeHistogram(options: HistogramOptions): string {
@@ -157,6 +170,8 @@ export interface LineChartOptions {
   readonly yLabel: string;
   readonly title: string;
   readonly description: string;
+  /** One sentence, above the drawing, naming what the reader should see in it. */
+  readonly takeaway?: string;
 }
 
 /** A line chart on a linear x axis, used for score against text length. */
@@ -244,8 +259,5 @@ export function lineChart(options: LineChartOptions): HTMLElement {
   yTitle.textContent = options.yLabel;
   svg.append(yTitle);
 
-  return el('figure', { style: 'margin:0' }, [
-    svg as unknown as Node,
-    el('figcaption', { class: 'note', text: options.description }),
-  ]);
+  return figure(options.takeaway, svg, options.description);
 }

@@ -5,13 +5,24 @@
  * score never appears on this page without: the null it is being compared against, the
  * number of positions behind it, the positions that were dropped and why, the decision
  * threshold, and where that threshold came from.
+ *
+ * That produced one card carrying fifteen equal-weight rows, which is the right instrument
+ * for an auditor working through Act II and the wrong one for the first thing a visitor
+ * sees: the verdict had to compete with the count of positions dropped after an
+ * end-of-text token. So there are two forms of the same card and one body of evidence
+ * behind both. `renderScoreCard` is unchanged — the full trail, in the order it was always
+ * printed. `renderResultCard` promotes the verdict, the mean, the threshold and the
+ * p-value, and puts every remaining row and both caveats behind a disclosure. Nothing is
+ * dropped in either form; the summary form only decides what a reader meets first.
  */
 
 import nullCorpus from '../data/pinned/null-corpus.json';
 import { binomialUpperTail, normalApproximation } from '../watermark/frequentist.ts';
 import type { ScoreResult } from '../watermark/score.ts';
 import { NULL_EXPECTED_MEAN } from '../watermark/score.ts';
-import { el, fixed, integer, provenanceTag, pValue, readout, verdict } from './dom.ts';
+import {
+  disclosure, el, fixed, integer, provenanceTag, pValue, readout, verdict,
+} from './dom.ts';
 import type { VerdictTone } from './dom.ts';
 
 export interface ThresholdInfo {
@@ -124,12 +135,18 @@ export function scoreVerdict(result: ScoreResult, threshold: ThresholdInfo): {
   };
 }
 
-export function renderScoreCard(
+/**
+ * Every statistic behind one score, in the order it has always been printed.
+ *
+ * Shared by both card forms rather than written twice: the summary card hides these rows
+ * behind a disclosure, and a second copy of the list would eventually disagree with the
+ * first about what the full card claims.
+ */
+function statisticRows(
   result: ScoreResult,
-  options: ScoreCardOptions,
-): HTMLElement {
-  const threshold = thresholdForLength(result.tokenCount);
-  const decision = scoreVerdict(result, threshold);
+  threshold: ThresholdInfo,
+  empirical?: ScoreCardOptions['empirical'],
+): [string, string][] {
   const approximation = result.score === null
     ? null
     : normalApproximation(result.score, result.scoredPositions, result.depth);
@@ -163,13 +180,35 @@ export function renderScoreCard(
     threshold.value === null ? 'not measured at this length' : fixed(threshold.value),
   ]);
 
-  if (options.empirical) {
-    rows.push(['Wrong-key null: draws', integer(options.empirical.samples)]);
-    rows.push(['Wrong-key null: mean', fixed(options.empirical.mean)]);
-    rows.push(['Wrong-key null: sd', fixed(options.empirical.sd, 5)]);
-    rows.push(['Wrong keys scoring this high', integer(options.empirical.atOrAbove)]);
-    rows.push(['Empirical p-value', options.empirical.pValue.toPrecision(3)]);
+  if (empirical) {
+    rows.push(['Wrong-key null: draws', integer(empirical.samples)]);
+    rows.push(['Wrong-key null: mean', fixed(empirical.mean)]);
+    rows.push(['Wrong-key null: sd', fixed(empirical.sd, 5)]);
+    rows.push(['Wrong keys scoring this high', integer(empirical.atOrAbove)]);
+    rows.push(['Empirical p-value', empirical.pValue.toPrecision(3)]);
   }
+
+  return rows;
+}
+
+/** Where the threshold came from, and what the normal approximation assumed to get z. */
+function provenanceNote(threshold: ThresholdInfo): HTMLElement {
+  return el('p', { class: 'note' }, [
+    `Threshold source: ${threshold.source}. `,
+    'Every threshold on this page is specific to this configuration. ',
+    'The standard error and z are computed on the assumption that the counted ' +
+      'g-values are independent fair coins; the paper argues that repeated-context ' +
+      'masking makes them so, and the wrong-key null measured on this page is how that ' +
+      'assumption gets checked rather than inherited.',
+  ]);
+}
+
+export function renderScoreCard(
+  result: ScoreResult,
+  options: ScoreCardOptions,
+): HTMLElement {
+  const threshold = thresholdForLength(result.tokenCount);
+  const decision = scoreVerdict(result, threshold);
 
   return el('div', {}, [
     el('div', { class: 'panel-title' }, [
@@ -178,14 +217,90 @@ export function renderScoreCard(
     ]),
     el('p', { class: 'note', text: `${options.keyDescription} · ${options.constructionLabel}` }),
     verdict(decision.tone, decision.label, decision.detail),
-    readout(rows, `${options.subject} statistics`),
-    el('p', { class: 'note' }, [
-      `Threshold source: ${threshold.source}. `,
-      'Every threshold on this page is specific to this configuration. ',
-      'The standard error and z are computed on the assumption that the counted ' +
-        'g-values are independent fair coins; the paper argues that repeated-context ' +
-        'masking makes them so, and the wrong-key null measured on this page is how that ' +
-        'assumption gets checked rather than inherited.',
-    ]),
+    readout(statisticRows(result, threshold, options.empirical), `${options.subject} statistics`),
+    provenanceNote(threshold),
   ]);
+}
+
+export interface ResultCardOptions extends ScoreCardOptions {
+  /** The scenario in the fewest words that still tell it from the other two. */
+  readonly headline: string;
+  /** One sentence: what this run changed, and what it holds in common with the others. */
+  readonly change: string;
+}
+
+/**
+ * A summary card and the handle a staged reveal needs.
+ *
+ * The scenario name stays on screen while the rest of the card is held back, so a replay
+ * shows three named boxes filling in rather than three boxes appearing out of nothing.
+ * `body` is therefore everything downstream of the name, handed back rather than found
+ * again with a selector that would silently stop matching the day the card is restructured.
+ */
+export interface ResultCard {
+  readonly node: HTMLElement;
+  readonly body: HTMLElement;
+}
+
+/**
+ * One figure, at the weight its role deserves: the mean is the decisive one and is marked
+ * as such, the threshold and the p-value are what make it readable, and everything else is
+ * a click away rather than a scroll away.
+ *
+ * A definition pair rather than two spans, for the same reason `readout` is one: these are
+ * labels and values, a reader hears them as pairs, and the grouping element the list
+ * allows means the pair still reads as a pair before anyone has styled it.
+ */
+function metric(label: string, value: string, major = false): HTMLElement {
+  return el('div', { class: major ? 'result-metric result-metric-major' : 'result-metric' }, [
+    el('dt', { class: 'result-metric-label', text: label }),
+    el('dd', { class: 'result-metric-value', text: value }),
+  ]);
+}
+
+export function renderResultCard(result: ScoreResult, options: ResultCardOptions): ResultCard {
+  const threshold = thresholdForLength(result.tokenCount);
+  const decision = scoreVerdict(result, threshold);
+  const exact = result.score === null
+    ? null
+    : binomialUpperTail(result.gSum, result.gValueCount);
+
+  const call = verdict(decision.tone, decision.label, decision.detail);
+  call.classList.add('result-verdict');
+
+  const body = el('div', { class: 'result-body' }, [
+    call,
+    el('dl', { class: 'result-metrics' }, [
+      metric('Mean g-score', fixed(result.score), true),
+      metric(
+        `Threshold at FPR ${(threshold.falsePositiveRate * 100).toFixed(0)}%`,
+        threshold.value === null ? 'not measured at this length' : fixed(threshold.value),
+      ),
+      metric(
+        'p-value (exact tail)',
+        exact === null ? 'no score to test' : pValue(exact.pValue, exact.log10PValue),
+      ),
+    ]),
+    el('p', { class: 'result-change', text: options.change }),
+    // Eager, not lazy: the claims suite re-derives the mean from the sum and the count
+    // through this closed summary, and a body built on first open reads as an empty string.
+    disclosure('Show calculation', () => [
+      el('p', { class: 'note', text: `${options.subject} · ${options.constructionLabel}` }),
+      readout(statisticRows(result, threshold, options.empirical),
+        `${options.subject} statistics`),
+      provenanceNote(threshold),
+    ], { class: 'result-calculation', eager: true }),
+  ]);
+
+  return {
+    node: el('div', { class: 'result-card' }, [
+      el('div', { class: 'panel-title' }, [
+        options.headline,
+        provenanceTag('paper', 'mean g-score'),
+      ]),
+      el('p', { class: 'result-scope', text: options.keyDescription }),
+      body,
+    ]),
+    body,
+  };
 }

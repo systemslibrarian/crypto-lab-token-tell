@@ -8,6 +8,12 @@
  * Measured rather than asserted: the same keyed selection is run many times against two
  * real pinned distributions, and the evidence it manages to leave per token is reported
  * for each.
+ *
+ * Three near-identical measurement cards arriving before the lesson made the reader do the
+ * subtraction, so the act now states the gap between them first and keeps the cards as the
+ * working. The corpus run behind them is the longest computation on the page that a
+ * visitor can start, which is why it is the one that most needs a control that comes back
+ * — disabled while it runs, recoverable if it throws, and resettable without a reload.
  */
 
 import distributions from '../data/pinned/distributions.json';
@@ -19,8 +25,9 @@ import {
 } from '../watermark/entropy.ts';
 import { accumulateHash } from '../watermark/hash.ts';
 import { applyTournamentReweighting, sampleIndex, totalVariationDistance } from '../watermark/tournament.ts';
+import { resetButton, runGuarded } from './busy.ts';
 import {
-  actHeader, button, clear, el, fixed, integer, liveRegion, nextFrame, panel,
+  actHeader, button, clear, consequence, el, fixed, integer, liveRegion, nextFrame, panel,
   provenanceTag, readout, scroller,
 } from './dom.ts';
 
@@ -49,16 +56,14 @@ export function renderAct3(root: HTMLElement): void {
     'to work with.',
   ));
 
-  root.append(el('p', { class: 'act-lede' }, [
-    'A generative watermark has more opportunity to encode detectable statistical ' +
-    'structure when the model has multiple plausible next tokens. If the next token is ' +
-    'nearly predetermined, there is much less freedom for keyed selection.',
-  ]));
-
   const entries = Object.entries(distributions.distributions) as [string, PinnedDistribution][];
   const grid = el('div', { class: 'grid grid-2' });
-  const measurements = entries.map(([key, dist]) => measure(key, dist));
+  const measurements = entries.map(([key, dist]) => ({ key, ...measure(key, dist) }));
   for (const measurement of measurements) grid.append(measurement.card);
+
+  const high = measurements.find((m) => m.key === 'high_entropy');
+  const low = measurements.find((m) => m.key === 'low_entropy');
+  if (high && low) root.append(renderHeadline(high, low));
   root.append(grid);
 
   root.append(panel('Side by side', [
@@ -111,6 +116,40 @@ export function renderAct3(root: HTMLElement): void {
   root.append(renderCorpusScale());
 }
 
+/**
+ * The one result this act is for: how much less evidence a confident model leaves behind.
+ *
+ * Stated as the two measured gaps rather than as the ratio alone, because the ratio is the
+ * memorable number and the pair is the checkable one — both appear again in the last
+ * column of the comparison table, computed from the same draws.
+ */
+function renderHeadline(high: Measurement, low: Measurement): HTMLElement {
+  const gap = (m: Measurement) => m.keyedMeanG - m.plainMeanG;
+  const ratio = gap(low) > 0 ? gap(high) / gap(low) : null;
+  return el('div', { class: 'act-headline' }, [
+    el('p', {
+      class: 'act-headline-label',
+      text: 'Evidence left per token: high entropy against low entropy',
+    }),
+    el('p', {
+      class: 'act-headline-figure',
+      text: `${fixed(gap(high), 4)} against ${fixed(gap(low), 4)}`,
+    }),
+    el('p', {
+      class: 'act-headline-detail',
+      text: 'The mean g-value of the tokens keyed selection returned, less the mean of the ' +
+        `tokens plain sampling returned, over ${integer(DRAWS)} draws from each pinned ` +
+        'distribution.',
+    }),
+    consequence(
+      'Gave the same key a context the model was already sure about',
+      ratio === null
+        ? 'it left no measurable evidence per token at all.'
+        : `it left about ${fixed(ratio, 1)} times less evidence per token.`,
+    ),
+  ]);
+}
+
 const GPT2_EOS = 50256;
 
 /**
@@ -127,9 +166,9 @@ function renderCorpusScale(): HTMLElement {
   const output = liveRegion('Corpus-scale entropy analysis');
   const progress = el('p', { class: 'progress', role: 'status', 'aria-live': 'polite' });
 
-  const run = async () => {
-    runButton.disabled = true;
+  const score = async () => {
     clear(output);
+    progress.textContent = 'Scoring the watermarked corpus…';
     const corpus = (nullCorpus as { watermarked_corpus_token_ids?: number[][] })
       .watermarked_corpus_token_ids ?? [];
     const threshold = (nullCorpus.by_length as unknown as
@@ -205,18 +244,45 @@ function renderCorpusScale(): HTMLElement {
         'ships: it is indexed by token count, and the evidence is indexed by scored ' +
         'positions.',
       ]),
+      consequence(
+        'Held the length fixed at 320 tokens and varied only the entropy',
+        `${integer(missed.length)} of ${integer(rows.length)} watermarked texts still went ` +
+        'undetected.',
+      ),
     );
-    runButton.disabled = false;
   };
 
-  const runButton = button('Score the watermarked corpus', () => { void run(); }, true);
+  /**
+   * The progress line is not handed to the guard.
+   *
+   * `runGuarded` empties whatever it was given the moment the work settles, and this line
+   * has to survive that: "Done." is the completion signal the accessibility gate waits on,
+   * and a status line that clears itself the instant the answer arrives tells a reader
+   * nothing about whether the run finished or was abandoned. So the act keeps its own
+   * status line — which is also the visible busy text while the scoring runs — and the
+   * guard is asked only to clear it when a run fails, where a half-written count beside a
+   * failure notice would be worse than nothing.
+   */
+  const start = (): Promise<void> => runGuarded(score, {
+    controls: [runButton, resetControl],
+    region: output,
+    onError: () => { progress.textContent = ''; },
+  });
+
+  const reset = () => {
+    clear(output);
+    progress.textContent = '';
+  };
+
+  const runButton = button('Score the watermarked corpus', () => { void start(); }, true);
+  const resetControl = resetButton('Reset the corpus scoring', reset);
 
   return panel('Where the watermark failed to take', [
     el('p', { class: 'note' }, [
       'The detection rate in Act II plateaus below 100% however long the text gets. This ' +
       'is why, computed here in the browser from the committed corpus rather than quoted.',
     ]),
-    el('div', { class: 'controls' }, [runButton]),
+    el('div', { class: 'controls' }, [runButton, resetControl]),
     progress,
     output,
   ], provenanceTag('pinned', '48 watermarked texts'));

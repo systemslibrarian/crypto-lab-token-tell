@@ -25,18 +25,50 @@
       content="SynthID-Text tournament sampling and keyed g-value detection compared with ECDSA P-256 signatures over a C2PA-shaped manifest."
     />
     <meta property="og:url" content="https://systemslibrarian.github.io/crypto-lab-token-tell/" />
-    <meta name="twitter:card" content="summary" />
+    <!--
+      The preview card is the page's own experiment rather than an illustration of it:
+      public/og.png prints the three mean g-scores the detector computes here, against the
+      same threshold. `npm run make:social` reads every one of those figures out of
+      src/data/pinned/ and refuses to draw a verdict the score does not support, so if the
+      pinned data ever moves the image is regenerated with it rather than quietly left
+      wrong. An absolute URL because a scraper does not resolve a relative one.
+    -->
+    <meta
+      property="og:image"
+      content="https://systemslibrarian.github.io/crypto-lab-token-tell/og.png"
+    />
+    <meta
+      property="og:image:alt"
+      content="Three results from one detector over the same passage, each read against the same 1% false-positive threshold: correct key, evidence, mean g-score 0.5975; wrong key on byte-identical input, no evidence, 0.5030; unwatermarked control, no evidence, 0.4970. Runs 1 and 2 share one SHA-256."
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Token Tell — crypto-lab" />
     <meta
       name="twitter:description"
       content="SynthID-Text tournament sampling and keyed g-value detection compared with ECDSA P-256 signatures over a C2PA-shaped manifest."
     />
-    <link rel="manifest" href="./manifest.webmanifest" />
-    <link
-      rel="icon"
-      type="image/svg+xml"
-      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔏</text></svg>"
+    <meta
+      name="twitter:image"
+      content="https://systemslibrarian.github.io/crypto-lab-token-tell/og.png"
     />
+    <meta
+      name="twitter:image:alt"
+      content="Three results from one detector over the same passage, each read against the same 1% false-positive threshold: correct key, evidence, mean g-score 0.5975; wrong key on byte-identical input, no evidence, 0.5030; unwatermarked control, no evidence, 0.4970. Runs 1 and 2 share one SHA-256."
+    />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <!--
+      Files rather than an emoji data URI: an emoji is drawn by whichever font the reader's
+      platform supplies, so the mark changed shape between a phone, a laptop and a
+      projector. The replacement is geometry in the lab's own accent pair, and is the same
+      everywhere. Relative paths throughout — this deploys under a Pages project subpath,
+      where a root-absolute icon path 404s.
+    -->
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./icon-180.png" />
   </head>
   <body>
     <style>
@@ -154,6 +186,24 @@
             accusation.
           </p>
         </aside>
+        <!-- The presenter's row: how much of the lab is on screen, the link to what is on
+             screen, and the way back to a clean page without a reload. -->
+        <div class="lab-bar">
+          <div id="mode-host"></div>
+          <div class="lab-bar-actions">
+            <div id="share-host"></div>
+            <button
+              type="button"
+              id="reset-all"
+              class="reset-control reset-global"
+              title="Rebuilds every experiment from scratch, without reloading the page."
+              aria-label="Reset every experiment"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+            </button>
+            <p class="sr-only" id="reset-status" role="status" aria-live="polite"></p>
+          </div>
+        </div>
       </header>
 
       <section class="thesis" aria-labelledby="thesis-heading">
@@ -168,28 +218,38 @@
         </p>
       </section>
 
-      <nav class="act-nav" aria-label="Sections">
-        <a href="#hero-experiment">Same text, different key</a>
-        <a href="#act-1">I · The hidden choice</a>
-        <a href="#act-2">II · Find the signal</a>
-        <a href="#act-3">III · The watermark needs choices</a>
-        <a href="#act-4">IV · Attack it</a>
-        <a href="#act-5">V · Sign the same text</a>
-        <a href="#act-6">VI · A signature can sign a lie</a>
-        <a href="#act-7">VII · What each mechanism proves</a>
-        <a href="#reference">Limitations, maths, sources</a>
-      </nav>
+      <!-- The first real action, in the first viewport. It ships disabled with the reason
+           on it; src/ui/hero-experiment.ts enables it once the three runs have scored, so
+           the button is never offered before it can do anything. -->
+      <div class="cta-row">
+        <button
+          type="button"
+          id="run-the-proof"
+          class="primary cta-button"
+          disabled
+          title="Available as soon as the detector has finished its first three runs."
+          aria-describedby="run-the-proof-note"
+        >
+          Run the proof
+        </button>
+        <p class="cta-note" id="run-the-proof-note">
+          Scores one watermarked passage three times: under the configured key, under a
+          wrong key given byte-identical input, and once on unwatermarked text.
+        </p>
+      </div>
+
+      <nav class="chapters" id="chapters" aria-label="Sections"></nav>
 
       <main>
       <section id="hero-experiment" class="act" aria-labelledby="hero-experiment-heading"></section>
-      <section id="act-1" class="act" aria-labelledby="act-1-heading"></section>
-      <section id="act-2" class="act" aria-labelledby="act-2-heading"></section>
-      <section id="act-3" class="act" aria-labelledby="act-3-heading"></section>
-      <section id="act-4" class="act" aria-labelledby="act-4-heading"></section>
+      <section id="act-1" class="act" data-depth="lab" aria-labelledby="act-1-heading"></section>
+      <section id="act-2" class="act" data-depth="lab" aria-labelledby="act-2-heading"></section>
+      <section id="act-3" class="act" data-depth="lab" aria-labelledby="act-3-heading"></section>
+      <section id="act-4" class="act" data-depth="lab" aria-labelledby="act-4-heading"></section>
       <section id="act-5" class="act" aria-labelledby="act-5-heading"></section>
       <section id="act-6" class="act" aria-labelledby="act-6-heading"></section>
       <section id="act-7" class="act" aria-labelledby="act-7-heading"></section>
-      <section id="reference" class="act" aria-labelledby="reference-heading"></section>
+      <section id="reference" class="act" data-depth="lab" aria-labelledby="reference-heading"></section>
       </main>
     </div>
 
