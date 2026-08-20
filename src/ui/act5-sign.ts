@@ -70,8 +70,8 @@ let coldMountAct6 = true;
    links restore a settled panel, the accessibility gate scans arrival as a finished state,
    and a screenshot of a page still assembling itself proves nothing. But a panel that
    already says what pressing the button will say makes the press itself a no-op — the two
-   beats chad's script spends forty seconds on were both pre-played, and pressing "Sign it"
-   changed not one character on the page.
+   beats the short route spends forty of its ninety seconds on were both pre-played, and
+   pressing "Sign it" changed not one character on the page.
 
    So the sequence exists but nobody performs it unasked. The press arms the stage; the
    mount does not. The staging then happens INSIDE the guarded run, which is what keeps the

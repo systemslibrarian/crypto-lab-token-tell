@@ -197,7 +197,9 @@ const ROWS: ComparisonRow[] = [
 ];
 
 /**
- * The short route's four questions, in the order chad's demo script reads them out. They
+ * The short route's four questions, in the order the ninety-second reading needs them:
+ * who can verify, then what kind of answer each mechanism gives, then what survives
+ * removal, then what none of them can settle. They
  * are ids into `ROWS` rather than a second table, so the compact comparison cannot come to
  * disagree with the full one.
  */

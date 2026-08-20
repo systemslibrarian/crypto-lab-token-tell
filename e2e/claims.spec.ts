@@ -438,7 +438,8 @@ test('the compact comparison agrees, row for row, with the ten-row table it summ
     expect(cards.length, 'the short route asks four questions').toBe(4);
     expect(rows.length, 'the audit table asks ten').toBe(10);
     // The load-bearing question leads the short route, exactly as it is marked in the
-    // table, and chad's script reads it out first.
+    // table: it is the row the rest of the comparison follows from, so it is the one a
+    // ninety-second reading has to reach first.
     expect(cards[0].question).toBe('WHO CAN VERIFY?');
     expect(cards[0].lead).toBe(true);
 

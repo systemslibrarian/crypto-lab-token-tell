@@ -334,7 +334,7 @@ export function actHeader(
   // every strip carries the lab tag, the hero's included: in the short route the strip
   // shares all twenty-seven of its distinct words with the `.thesis` block a third of a
   // screen above it, and a presenter reading the same sentence to the room twice inside
-  // the opening twenty seconds is the repetition chad.md asked to remove. Nothing is lost
+  // the opening twenty seconds is repetition rather than emphasis. Nothing is lost
   // by it — the full claim and its precise form are both still on screen, larger, in the
   // block this strip was only ever a travelling copy of. The attribute name is written
   // literally so this helpers file stays free of a dependency on the mode.
