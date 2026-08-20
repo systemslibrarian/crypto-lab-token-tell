@@ -5,9 +5,14 @@
  * when the model has multiple plausible next tokens. If the next token is nearly
  * predetermined, there is much less freedom for keyed selection.
  *
- * Measured rather than asserted: the same keyed selection is run many times against two
- * real pinned distributions, and the evidence it manages to leave per token is reported
- * for each.
+ * Computed rather than asserted, and computed exactly rather than sampled: the same keyed
+ * selection is applied to three real pinned distributions, and the evidence it manages to
+ * leave per token is reported for each. By the time that evidence is wanted, both weight
+ * vectors — the pinned distribution and the one keyed selection leaves behind — are fully
+ * explicit and the answer is a dot product, so drawing from them would only add sampling
+ * error to a quantity that has none. Four decimals over a Monte Carlo estimate is a number
+ * presented as more certain than it is, which is the failure this page exists to argue
+ * against.
  *
  * Three near-identical measurement cards arriving before the lesson made the reader do the
  * subtraction, so the act now states the gap between them first and keeps the cards as the
@@ -24,7 +29,7 @@ import {
   collisionProbability, effectiveCandidates, shannonEntropyBits, topMass,
 } from '../watermark/entropy.ts';
 import { accumulateHash } from '../watermark/hash.ts';
-import { applyTournamentReweighting, sampleIndex, totalVariationDistance } from '../watermark/tournament.ts';
+import { applyTournamentReweighting, totalVariationDistance } from '../watermark/tournament.ts';
 import { resetButton, runGuarded } from './busy.ts';
 import {
   actHeader, button, clear, consequence, el, fixed, integer, liveRegion, nextFrame, panel,
@@ -32,18 +37,6 @@ import {
 } from './dom.ts';
 
 type PinnedDistribution = typeof distributions.distributions.high_entropy;
-
-const DRAWS = 4000;
-
-function makeRandom(seed: number): () => number {
-  let state = seed >>> 0 || 1;
-  return () => {
-    state ^= state << 13; state >>>= 0;
-    state ^= state >>> 17;
-    state ^= state << 5; state >>>= 0;
-    return state / 4294967296;
-  };
-}
 
 export function renderAct3(root: HTMLElement): void {
   clear(root);
@@ -106,11 +99,32 @@ export function renderAct3(root: HTMLElement): void {
       ]),
     ]),
     el('p', { class: 'note' }, [
-      `Each row draws ${integer(DRAWS)} tokens from the pinned distribution twice: once by ` +
-      'plain sampling, once through keyed selection at the configured depth. The last ' +
-      'column is the gap between the mean g-value of the tokens that came out — the ' +
-      'evidence one position contributes. It is not a claim about any other model or any ' +
-      'other context; it is what these two pinned distributions do.',
+      'Each row is computed exactly rather than sampled. Both distributions are explicit — ' +
+      'the pinned one, and the one keyed selection leaves behind — so the mean g-value of a ' +
+      'token drawn from either is the probability-weighted average of the g-values of its ' +
+      'own tokens, and the last column is the gap between the two. That gap is the evidence ' +
+      'one position contributes. It is not a claim about any other model or any other ' +
+      'context; it is what these pinned distributions do.',
+    ]),
+    el('p', { class: 'note' }, [
+      'Neither mean-g column is the 0.5 null. A g-value is a fixed function of the context, ' +
+      'the token and the key, so one frozen context has a mean of its own and it can sit ' +
+      'well above or well below a half — which is why "Mean g, unwatermarked" here does not ' +
+      'read 0.500 and is not meant to. The 0.5 Act II expects, and the threshold it derives, ' +
+      'come from averaging over contexts, which is what the corpus null measures. That is ' +
+      'why the last column subtracts each context’s own unwatermarked mean rather than 0.5.',
+    ]),
+    // The reconciliation B1 asks for, at the point where it bites hardest: one of these
+    // cards moves the distribution almost the whole way, which reads as a refutation of
+    // Act I unless the scope of the guarantee is stated where the number is.
+    el('p', { class: 'note' }, [
+      'The "distribution moved" figure on each card — as far as ' +
+      `${fixed(Math.max(...measurements.map((m) => m.totalVariation)), 4)} here — is not in ` +
+      'tension with the distribution-preservation property in Act I. That property is an ' +
+      'expectation over a uniformly random key, and a statement about a single decoding ' +
+      'step. These cards hold the key fixed at the one published set this lab ships and ' +
+      'report one step, so a large distance is one of the terms that expectation averages ' +
+      'over rather than a counterexample to it.',
     ]),
     el('p', { class: 'note' }, [
       'This is why "how many tokens do I need?" has no general answer. Two texts of the ' +
@@ -125,9 +139,13 @@ export function renderAct3(root: HTMLElement): void {
 /**
  * The one result this act is for: how much less evidence a confident model leaves behind.
  *
- * Stated as the two measured gaps rather than as the ratio alone, because the ratio is the
+ * Stated as the two gaps rather than as the ratio alone, because the ratio is the
  * memorable number and the pair is the checkable one — both appear again in the last
- * column of the comparison table, computed from the same draws.
+ * column of the comparison table, computed from the same distributions.
+ *
+ * The ratio is given to one decimal because that is the precision it has. The gaps are
+ * exact, so the ratio is too; what a second decimal would suggest is that the ratio
+ * generalises past these two pinned contexts, and it does not.
  */
 function renderHeadline(high: Measurement, low: Measurement): HTMLElement {
   const gap = (m: Measurement) => m.keyedMeanG - m.plainMeanG;
@@ -143,9 +161,9 @@ function renderHeadline(high: Measurement, low: Measurement): HTMLElement {
     }),
     el('p', {
       class: 'act-headline-detail',
-      text: 'The mean g-value of the tokens keyed selection returned, less the mean of the ' +
-        `tokens plain sampling returned, over ${integer(DRAWS)} draws from each pinned ` +
-        'distribution.',
+      text: 'The mean g-value a token drawn through keyed selection carries, less the mean ' +
+        'a token drawn by plain sampling carries — computed exactly from each pinned ' +
+        'distribution and its keyed reweighting, not estimated from draws.',
     }),
     consequence(
       'Gave the same key a context the model was already sure about',
@@ -316,6 +334,7 @@ interface Measurement {
   collision: number;
   plainMeanG: number;
   keyedMeanG: number;
+  totalVariation: number;
   card: HTMLElement;
 }
 
@@ -334,16 +353,16 @@ function measure(key: string, dist: PinnedDistribution): Measurement {
   const reweighted = applyTournamentReweighting(
     probabilities, gValues, watermarkParams.keys.length).probabilities;
 
-  const plainRandom = makeRandom(11);
-  const keyedRandom = makeRandom(11);
-  let plainSum = 0;
-  let keyedSum = 0;
-  for (let draw = 0; draw < DRAWS; draw++) {
-    plainSum += meanG[sampleIndex(probabilities, plainRandom())];
-    keyedSum += meanG[sampleIndex(reweighted, keyedRandom())];
-  }
+  // The mean g-value of a token drawn from a distribution, taken exactly. Both weight
+  // vectors are in hand and g is a fixed function of the token, so this is Σ pᵢ·ḡᵢ — the
+  // same quantity a sample would estimate, without the estimate's error bar.
+  const expectedG = (weights: number[]) =>
+    weights.reduce((total, weight, index) => total + weight * meanG[index], 0);
 
   const entropy = shannonEntropyBits(probabilities);
+  // Computed once and read twice — by this card and by the note that reconciles these
+  // distances with Act I's preservation property — so the two cannot disagree.
+  const totalVariation = totalVariationDistance(probabilities, reweighted);
   const label = key.replace('_', ' ');
 
   const winners = dist.candidates
@@ -376,8 +395,7 @@ function measure(key: string, dist: PinnedDistribution): Measurement {
       ['Its probability', fixed(topMass(probabilities), 4)],
       ['Collision probability', fixed(collisionProbability(probabilities), 4)],
       ['Mass kept by top-k', fixed(dist.mass_kept_by_top_k, 4)],
-      ['Distribution moved (total variation)',
-        fixed(totalVariationDistance(probabilities, reweighted), 4)],
+      ['Distribution moved (total variation)', fixed(totalVariation, 4)],
     ], `${label} distribution`, { stackWhenNarrow: true }),
     scroller(`${label}: most likely tokens after keyed selection`, [
       el('table', {}, [
@@ -398,8 +416,9 @@ function measure(key: string, dist: PinnedDistribution): Measurement {
     effective: effectiveCandidates(probabilities),
     topMass: topMass(probabilities),
     collision: collisionProbability(probabilities),
-    plainMeanG: plainSum / DRAWS,
-    keyedMeanG: keyedSum / DRAWS,
+    plainMeanG: expectedG(probabilities),
+    keyedMeanG: expectedG(reweighted),
+    totalVariation,
     card,
   };
 }

@@ -1,14 +1,14 @@
 /**
  * The pinned g-value sampling table.
  *
- * PINNED EMPIRICAL DATA — the reference implementation builds this table with a torch
- * RNG (`torch.randint(0, 2, (sampling_table_size,), generator=manual_seed(seed))`), and
- * a browser cannot reproduce torch's RNG. So the table is captured once by
- * tools/capture_sampling_table.py and committed with its sha256; everything else about
- * the g-function is recomputed here.
+ * PINNED EMPIRICAL DATA — the reference implementation builds this table with a torch RNG
+ * (`torch.randint(0, 2, (sampling_table_size,), generator=manual_seed(seed))`), and a browser
+ * cannot reproduce torch's RNG. So the table is captured once by tools/capture_sampling_table.py
+ * and committed with its sha256; everything else about the g-function is recomputed here.
  *
- * This is the one place where the lab consumes a value it cannot re-derive in the
- * browser, and it is why the table's hash is checked at load rather than trusted.
+ * This is the one place where the lab consumes a value it cannot re-derive in the browser, so it is
+ * checked rather than trusted: src/lab-config.ts recomputes both committed digests at load — over
+ * the packed blob, and over the bytes `at()` returns — and refuses the page if either differs.
  */
 
 export interface SamplingTable {

@@ -266,6 +266,13 @@ export function renderAct7(root: HTMLElement): void {
     // The quotation and the caution that qualifies it travel together or not at all: a
     // sourced claim shown without the note narrowing it would be the one place on this
     // page where the short route said more than it can support. Both are lab-depth.
+    //
+    // The caution narrows the quotation twice, because a reader can slide past it in two
+    // different ways. The first is vocabulary — "statistical watermark" is not C2PA's
+    // phrase. The second is function, and it is the one that would matter: C2PA naming
+    // the watermark as the answer to stripping is true and sourced, but it does not make
+    // THIS page's mark that answer, and the climactic paragraph of the page is the last
+    // place to leave that inference available.
     labOnly(el('p', {}, [
       'That is not this page’s opinion. C2PA’s own Security Considerations document says ' +
       'it outright: "C2PA does not offer any protection against the complete removal of ' +
@@ -281,13 +288,19 @@ export function renderAct7(root: HTMLElement): void {
       'specification does not use the phrase "statistical watermark", and its ' +
       '"not statistically unique" qualifier attaches to the fingerprint branch, not the ' +
       'watermark branch. "Statistical watermarking" is this lab’s name for the mechanism ' +
-      'in the table above, not a term borrowed from C2PA.',
+      'in the table above, not a term borrowed from C2PA. Nor could this page’s mark ' +
+      'serve as a C2PA soft binding: a soft binding carries a value, and discovery ' +
+      'matches that value exactly against a manifest repository (§18.10.5.1), while an ' +
+      'invisible watermark in C2PA’s sense identifies the asset or stores a reference to ' +
+      'a manifest (§2.4.3). The detector here does neither — it returns a score, so there ' +
+      'is no value to match and no manifest to point at.',
     ])),
     el('p', {}, [
       'The mistake this page exists to prevent is not choosing wrongly between them — it ' +
       'is reading either one as an answer to "did a human write this, and is it true?"',
     ]),
-  ], provenanceTag('paper', 'C2PA 2.4 §2.3.13, §9.1, Security Considerations §2.3')));
+  ], provenanceTag('paper',
+    'C2PA 2.4 §2.3.13, §2.4.3, §9.1, §18.10.5.1, Security Considerations §2.3')));
 
   root.append(demoOnly(renderDemoScope()));
   root.append(demoOnly(renderBranchPanel()));

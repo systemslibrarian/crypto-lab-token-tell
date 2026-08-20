@@ -100,6 +100,18 @@ export function renderAct1(root: HTMLElement): void {
     'match — and makes no claim about the distortionary one it did not build.',
   ]));
 
+  // The figure directly below this says the key moved the model a long way, which reads as
+  // a contradiction of the sentence above it unless the scope of the guarantee is on the
+  // page rather than only in docs/MATH.md. It is the one step in this act's argument a
+  // reader cannot check from what is on screen, so it is stated here rather than cited.
+  root.append(el('p', { class: 'act-lede' }, [
+    'Read that property at its stated scope. It is an expectation over a uniformly random ' +
+    'key, not a statement about any fixed key, and it is a statement about a single ' +
+    'decoding step. This page holds the key fixed at the one published set it ships with ' +
+    'and reports one step, so the distance below is the quantity the guarantee averages ' +
+    'over — not a quantity it promises to be small.',
+  ]));
+
   const state = {
     depth: SHIPPED.depth,
     distribution: scenarioFromUrl(),
@@ -171,9 +183,18 @@ interface TournamentSummary {
   readonly depth: number;
   readonly distributionLabel: string;
   readonly conceptualCandidates: number;
+  /** How many candidates the model actually offered — the size of the pinned distribution. */
+  readonly distinctTokens: number;
   readonly totalVariation: number;
   /** Null above the depth at which no candidate is instantiated, which is most of them. */
   readonly winningToken: string | null;
+  /**
+   * Whether a coin, rather than the key, settled the final match. The paper's rule is that
+   * equal g-values are broken at random, so this is a real outcome of the construction and
+   * not an edge case — and a headline that says "the key decided" on a draw a coin decided
+   * is the same defect as a headline that disagrees with the readout beneath it.
+   */
+  readonly finalDecidedByCoin: boolean | null;
 }
 
 /**
@@ -184,9 +205,17 @@ interface TournamentSummary {
  * duplication — they are read from the same computation, so they cannot drift, and the
  * difference between a decisive figure and an audit row is the whole point of stating one
  * of them at this size.
+ *
+ * The consequence has two spellings because the panel has two, and the counts they use are
+ * the panel's own. N^m is how many samples the bracket draws, not how many candidates the
+ * model offered: it draws them, with replacement, from the pinned distribution's tokens,
+ * and the readout below prints both figures side by side. Above eight layers there is no
+ * bracket at all, so the sentence says what was done instead rather than describing a draw
+ * that did not happen — which is the distinction this panel exists to keep.
  */
 function renderHeadline(summary: TournamentSummary): Node[] {
-  const offered = `The model offered ${integer(summary.conceptualCandidates)} candidates`;
+  const drew = `The tournament drew ${integer(summary.conceptualCandidates)} samples from the ` +
+    `model’s ${integer(summary.distinctTokens)} candidates`;
   return [
     el('p', { class: 'act-headline-label', text: 'How far the key moved the model' }),
     el('p', { class: 'act-headline-figure', text: fixed(summary.totalVariation, 4) }),
@@ -197,10 +226,16 @@ function renderHeadline(summary: TournamentSummary): Node[] {
         `${summary.distributionLabel} context.`,
     }),
     summary.winningToken === null
-      ? consequence(offered,
-        'the key reweighted every one of them, and not one was drawn.')
-      : consequence(offered,
-        `the key decided which one survived: ${summary.winningToken}.`),
+      ? consequence(
+        `A bracket of ${integer(summary.conceptualCandidates)} draws was never built`,
+        `the key reweighted the ${integer(summary.distinctTokens)}-token distribution once ` +
+        'per layer instead, which is what both reference implementations do.')
+      : summary.finalDecidedByCoin
+        ? consequence(drew,
+          'both finalists had the same g-value, so the key had nothing to say and a coin '
+          + `left ${summary.winningToken}.`)
+        : consequence(drew,
+          `the key decided which one survived: ${summary.winningToken}.`),
   ];
 }
 
@@ -257,8 +292,14 @@ function renderTournament(
       depth,
       distributionLabel: distributionKey.replace('_', ' '),
       conceptualCandidates,
+      distinctTokens: tokenIds.length,
       totalVariation,
       winningToken: winner === null ? null : JSON.stringify(winner),
+      // The last match pushed is the final: `runBracket` plays layer by layer and halves
+      // the field each time, so the deepest layer contributes exactly one.
+      finalDecidedByCoin: bracket
+        ? (bracket.matches[bracket.matches.length - 1]?.decidedByTieBreak ?? false)
+        : null,
     },
   };
 }

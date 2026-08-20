@@ -190,6 +190,18 @@ function renderLiveAttacks(resetPinned: () => void): HTMLElement {
       ['Total measurements', integer(Object.values(results).flat().length)],
     ], 'Sweep parameters'));
 
+    // The takeaway is written from the sweep rather than from the expectation. Truncation
+    // does not pull the mean down on this sample — it is flat and then rises above the
+    // untouched score, because the windows it leaves behind are the same windows — so a
+    // caption telling the reader to watch three lines fall would be describing a
+    // measurement this panel did not take. What truncation removes is scored positions,
+    // which is the quantity the table's Scored column carries and the mean does not.
+    const strongest = STRENGTHS[STRENGTHS.length - 1];
+    const truncationEnd = meanAt(results.truncation, strongest);
+    const truncationScored =
+      results.truncation.find((run) => run.strength === strongest)?.scoredPositions ?? 0;
+    const truncationSide = truncationEnd < (baseline.score ?? 0.5) ? 'below' : 'above';
+
     chartHost.append(lineChart({
       series: [
         {
@@ -212,8 +224,13 @@ function renderLiveAttacks(resetPinned: () => void): HTMLElement {
       yLabel: 'mean g',
       title: 'Score against transformation strength',
       takeaway:
-        'What to look for: how far each line has fallen toward 0.5 by the time half the ' +
-        'tokens are transformed. That distance is the evidence the attack removed.',
+        'What to look for: deletion and replacement pull the mean toward 0.5, and ' +
+        `truncation does not — at ${Math.round(strongest * 100)}% it sits at ` +
+        `${fixed(truncationEnd)}, ${truncationSide} the untouched ${fixed(baseline.score)}. ` +
+        'Truncation costs evidence by leaving fewer scored positions — ' +
+        `${integer(baseline.scoredPositions)} down to ${integer(truncationScored)} — rather ` +
+        'than by lowering the mean, which is why the mean and the amount of evidence are ' +
+        'not the same quantity.',
       description:
         'Mean g-score against the fraction of tokens transformed, for truncation ' +
         '(dropping the tail), deletion (dropping tokens at random) and replacement ' +
@@ -261,7 +278,6 @@ function renderLiveAttacks(resetPinned: () => void): HTMLElement {
       ]),
     );
 
-    const strongest = STRENGTHS[STRENGTHS.length - 1];
     const deletionMean = meanAt(results.deletion, strongest);
     const moved = deletionMean < (baseline.score ?? 0.5) ? 'fell' : 'rose';
     output.append(consequence(

@@ -135,9 +135,15 @@ const PROVENANCE: ProvenanceEntry[] = [
   {
     component: 'sampling table (transformers variant)',
     kind: 'pinned',
-    source: `torch.randint(0, 2, (${integer(samplingTable.size)},)) seeded ${samplingTable.seed}`,
+    // The command comes out of the pinned file rather than being paraphrased here: a
+    // paraphrase dropped the seeding step, and `integer()` rendered the size with a
+    // thousands separator, which in Python is a two-tuple and builds a 65×536 tensor.
+    source: `${samplingTable.generator} with size=${String(samplingTable.size)}, ` +
+      `seed=${String(samplingTable.seed)}`,
     note: 'The one value the browser cannot re-derive, so it is committed with its ' +
-      'SHA-256 and checked at load.',
+      'SHA-256 and checked at load: lab-config.ts re-hashes the packed table and the ' +
+      'bytes it decodes to, and refuses to run the page rather than score against a ' +
+      'table it cannot vouch for.',
   },
   {
     component: 'C2PA manifest',
@@ -227,7 +233,7 @@ const SOURCES: Source[] = [
   },
   {
     title: 'C2PA Technical Specification 2.4',
-    detail: 'Published April 2026; resolved from spec.c2pa.org at build time rather than copied from a secondary source, which disagree (2.1 / 2.2 / 2.3 / 2.4).',
+    detail: 'Published April 2026, from the specification’s own Version History (§5.3.1); the version and URL were read from spec.c2pa.org itself on the access date below rather than from a secondary source, since secondary sources disagree (2.1 / 2.2 / 2.3 / 2.4). The build resolves nothing: what is quoted here is what was read then.',
     url: 'https://spec.c2pa.org/specifications/specifications/2.4/specs/C2PA_Specification.html',
     accessed: '2026-08-19',
   },

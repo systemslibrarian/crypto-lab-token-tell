@@ -321,17 +321,18 @@ pip install -r tools/requirements-transformers.txt  # capture_sampling_table.py 
 npm test              # 214 unit tests, including differential vectors from both references
 npm run verify        # the independent verifier: 112 checks, sharing no module with the lab
 npm run verify:manifest
-npm run test:a11y     # all four browser suites, 50 tests, against the production build
+npm run test:a11y     # all five browser suites, 61 tests, against the production build
 ```
 
 `npm run test:a11y` builds the site and serves the build with `vite preview` before it
-starts, so what passes there is what ships. The four suites can be run one at a time:
+starts, so what passes there is what ships. The five suites can be run one at a time:
 
 ```
 npx playwright test e2e/a11y.spec.ts     # axe WCAG 2.1 A/AA plus further oracles; slow
 npx playwright test e2e/claims.spec.ts   # 20 tests that re-derive what the page says
+npx playwright test e2e/offline.spec.ts  # the precache under host rules, not preview's
 npx playwright test e2e/smoke.spec.ts    # every act mounts and computes at either depth
-npx playwright test e2e/visual.spec.ts   # 25 geometry tests at four viewports; ~80 s
+npx playwright test e2e/visual.spec.ts   # 34 geometry tests at four viewports; ~80 s
 ```
 
 The unit suite is differential, not self-referential: every expectation for the hash, the
@@ -446,10 +447,37 @@ being checkable.
 Detection at the reference implementation's default depth of 30 costs about 390 hash steps
 per scored position, so a 320-token passage scores in a few milliseconds. The wrong-key
 sweep re-walks the sequence once per key and is chunked with a progress readout for that
-reason; the corpus passes score 48 texts each and take a second or two. Nothing on the
-page blocks on the network, and the built site works offline after the first visit — the
-service worker is registered in production builds only, so the dev server never serves
-yesterday's bundle back to whoever is working on the page.
+reason; the corpus passes score 48 texts each and take a second or two.
+
+Nothing on the page blocks on the network, and the built site works offline after the
+first visit. A navigation prefers the network, so a returning visitor picks up a new
+deploy on the first load that reaches one, and falls back to the precached shell after
+three seconds. The deadline is there because a network that accepts a connection and then
+never answers — which is what a captive portal or a hotel access point does — never
+rejects, and a `catch` alone would leave the reader on a blank page for as long as the
+browser's own timeout with a complete copy of the lab cached beside them. Losing that race
+costs one deploy of freshness and nothing else: the shell and its content-hashed assets
+come out of the same cache, so the pair is always coherent, and the worker that fetched
+the new deploy in the background takes over on the next navigation. The precache itself is
+fetched with `cache: 'reload'` for a related reason: GitHub Pages sends a ten-minute
+`cache-control` on the document, so a return visit inside that window would otherwise
+store the previous deploy's shell next to this deploy's script. The worker is registered
+in production builds only, so the dev server never serves yesterday's bundle back to
+whoever is working on the page.
+
+That first sentence was false on every deploy since the worker was added, and it is worth
+saying how. The build copies `public/.nojekyll` into the output, the worker precaches
+everything the build wrote, GitHub Pages refuses any path whose segment begins with a dot,
+and `Cache.addAll` rejects the whole batch on a single non-ok response — so a zero-byte
+marker file nothing ever requests discarded the install and the registration with it,
+leaving a named cache holding zero entries on the live origin. `vite preview` answers that
+same URL with a 200, which is exactly why every local check and the whole browser suite
+went green over a worker that could not install where it ships. The precache now drops
+dotted paths, `public/.nojekyll` stays on disk because it still guards a branch-based
+deploy, and [`e2e/offline.spec.ts`](e2e/offline.spec.ts) asserts the property over the
+generated list and then drives a real install and a real offline navigation through a
+stand-in that applies the host's rule — because no test served by the local server could
+ever have seen it.
 
 ---
 

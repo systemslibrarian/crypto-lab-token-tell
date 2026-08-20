@@ -402,6 +402,12 @@ tbody tr:last-child td { border-bottom: none; }
 .chart .bar { fill: color-mix(in oklab, var(--accent) 55%, var(--panel)); }
 .chart .marker { stroke: var(--ok); stroke-width: 2; }
 .chart .marker-alt { stroke: var(--warn); stroke-width: 2; stroke-dasharray: 4 3; }
+/* SVG fills a polyline black unless told otherwise, and only the two `series-*` classes
+   said otherwise. Act IV's third line reuses `marker-alt` — written for the histogram's
+   `<line>`, where fill has no meaning — and painted a solid black wedge across the plot.
+   The rule belongs on the element rather than on the series classes, because the next
+   line a chart needs will reach for some other class and reintroduce the wedge. */
+.chart polyline { fill: none; }
 .chart .series-null { stroke: var(--text-muted); fill: none; stroke-width: 2; }
 .chart .series-wm { stroke: var(--ok); fill: none; stroke-width: 2; }
 .chart .band { fill: color-mix(in oklab, var(--text-muted) 25%, transparent); }

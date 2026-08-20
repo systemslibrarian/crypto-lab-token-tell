@@ -20,6 +20,17 @@
  * The directory is the one Vite resolved, not the string 'dist': a build with any other
  * `build.outDir` was writing its service worker into a directory it had not built.
  *
+ * Reading the directory does get one thing wrong, and it cost this lab its entire offline
+ * story on every deploy since the worker was added: `public/.nojekyll` is copied into the
+ * output like everything else, GitHub Pages refuses any path segment beginning with a
+ * dot, and `Cache.addAll` rejects the whole batch on a single non-ok response. So one 404
+ * on a zero-byte marker file nothing ever requests discarded the install, and the
+ * registration with it — while `vite preview` answered the same URL with a 200, which is
+ * precisely why the e2e suite and every local check went green over a worker that could
+ * not install where it shipped. The dotfile filter below is that fix; `public/.nojekyll`
+ * stays on disk because it still guards a branch-based deploy, it just never enters the
+ * precache.
+ *
  * Written rather than copied: no lab in this fleet ships a service worker, and the one
  * hand-written service worker in the wider repository set serves a site at a domain root
  * and uses root-absolute paths, which 404 under a GitHub Pages project subpath.
@@ -68,9 +79,13 @@ export function offlinePlugin(base: string): Plugin {
         const { readFile, writeFile } = await import('node:fs/promises');
         const { join } = await import('node:path');
         // The worker cannot precache itself, and a source map is a debugging artefact no
-        // reader offline is ever going to ask for.
+        // reader offline is ever going to ask for. Dotfiles go for a harder reason: the
+        // host does not serve them, `vite preview` does, and one 404 fails the whole
+        // install — so anything the build writes under a dotted segment must be absent
+        // from this list rather than merely unlikely to be asked for.
         const emitted = (await filesUnder(outDir))
           .filter((name) => name !== 'sw.js' && !name.endsWith('.map'))
+          .filter((name) => !name.split('/').some((segment) => segment.startsWith('.')))
           .sort();
         // The shell is cached under the base path, which is the URL a navigation to the
         // lab actually asks for; `index.html` is the same bytes under a name nothing
@@ -94,6 +109,10 @@ export function offlinePlugin(base: string): Plugin {
  * Precaches exactly the files this build wrote, under this deployment's base path.
  * The cache name is derived from their names and their bytes, so a changed asset —
  * including a redrawn icon that keeps its name — retires the old cache.
+ *
+ * Two clocks matter here and both are stated where they are used: the precache reads past
+ * the HTTP cache's freshness window so a deploy is never half-installed, and a navigation
+ * gives the network NAVIGATE_DEADLINE_MS to answer before the cached shell is served.
  */
 'use strict';
 
@@ -101,9 +120,29 @@ const VERSION = ${JSON.stringify(version)};
 const BASE = ${JSON.stringify(base)};
 const CORE = ${JSON.stringify(core, null, 2)};
 
+/* A navigation waits this long for the network before the cached shell is served.
+ * A network that refuses a connection rejects at once and the catch would have been
+ * enough; a captive portal or a hotel access point that accepts the connection and then
+ * never answers rejects only after the browser's own timeout, tens of seconds, during
+ * which the reader sits on a blank page with a complete copy of the lab in the cache
+ * beside them. Three seconds is the trade: losing the race on a merely slow connection
+ * costs one deploy of freshness, and the shell and its content-hashed assets come from
+ * the same cache so the pair is always coherent — the next navigation picks up the new
+ * deploy, and the worker installing in the background has already fetched it.
+ */
+const NAVIGATE_DEADLINE_MS = 3000;
+
+/* cache: 'reload' rather than a plain URL, because addAll otherwise reads through the
+ * HTTP cache. The host sends cache-control: max-age=600 on the document, so a return
+ * visit inside that window would precache the PREVIOUS deploy's shell alongside THIS
+ * deploy's script: a mismatched pair served with a 200, which is the one failure a
+ * reader has no way to see. The cost is one revalidation per install, once.
+ */
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(VERSION).then((cache) => cache.addAll(CORE)).then(() => self.skipWaiting()),
+    caches.open(VERSION)
+      .then((cache) => cache.addAll(CORE.map((url) => new Request(url, { cache: 'reload' }))))
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -122,10 +161,16 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   // Navigations: try the network so a deploy is picked up, fall back to the cached shell
-  // so the lab keeps working with no connection at all.
+  // so the lab keeps working on a connection that is absent OR merely unresponsive. The
+  // fetch is folded to null rather than left to reject, so a network that loses the race
+  // cannot surface later as an unhandled rejection; and if nothing is cached yet the late
+  // answer is still awaited, because a first visit has no shell to fall back to.
   if (request.mode === 'navigate') {
+    const network = fetch(request).then((response) => response, () => null);
+    const deadline = new Promise((resolve) => setTimeout(resolve, NAVIGATE_DEADLINE_MS));
     event.respondWith(
-      fetch(request).catch(() => caches.match(BASE).then((cached) => cached ?? Response.error())),
+      Promise.race([network, deadline]).then((response) => response ?? caches.match(BASE)
+        .then((cached) => cached ?? network.then((late) => late ?? Response.error()))),
     );
     return;
   }
