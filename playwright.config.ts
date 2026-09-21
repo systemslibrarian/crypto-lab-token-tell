@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 // Accessibility and claims gate. Runs against the production build served by
 // `vite preview`, so what passes here is what actually ships to GitHub Pages.
 const BASE = '/crypto-lab-token-tell/';
-const PORT = 4684; // surveyed free across 178 sibling labs' committed configs
+const PORT = 4209; // surveyed free across 178 sibling labs' committed configs
 const ORIGIN = `http://localhost:${PORT}`;
 
 export default defineConfig({
