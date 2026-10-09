@@ -24,13 +24,13 @@
     "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.4",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^5.0.3",
     "ajv": "^8.20.0",
     "happy-dom": "^20.14.5",
     "js-yaml": "^5.4.2",
     "typescript": "~7.0.2",
     "vite": "^8.3.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.3"
   },
   "dependencies": {
     "@noble/hashes": "^2.4.0"
