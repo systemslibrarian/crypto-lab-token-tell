@@ -673,6 +673,13 @@ test('a deep link opens the exact scenario it advertises', async ({ page }) => {
   await page.goto(`${LAB}&scenario=mid_entropy#act-1`);
   await expect(page.locator('#tournament-distribution')).toHaveValue('mid_entropy');
   await expectLandsClearOfTheStickyBars(page, 'act-1');
+
+  // Object-prototype names are not scenarios. Accepting `toString` through the `in`
+  // operator used to crash the render when it was treated as a pinned distribution.
+  await page.goto(`${LAB}&scenario=toString#act-1`);
+  await expect(page.locator('#tournament-distribution')).toHaveValue('high_entropy');
+  expect(new URL(page.url()).searchParams.get('scenario')).toBeNull();
+  await expectLandsClearOfTheStickyBars(page, 'act-1');
 });
 
 test('a deep link to a sample loads that sample, and a link to nothing is dropped',
