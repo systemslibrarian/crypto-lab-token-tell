@@ -546,8 +546,8 @@ parameters:
       location: "Supplementary G.1 Theorem 18"
     match: "yes"
   - name: "lcg_multiplier"
-    value_in_code: 6364136223846793000
-    expected_value: 6364136223846793000
+    value_in_code: "6364136223846793005"
+    expected_value: "6364136223846793005"
     reference_anchor:
       ref: "REFIMPL"
       location: "hashing_function.py accumulate_hash"
@@ -1229,7 +1229,7 @@ claims:
       relation: "equality"
       expression: "((((1 + 464) * 6364136223846793005 + 1) + 2**63) % 2**64) - 2**63"
       inputs: {}
-      expected: 2951479051793528300
+      expected: "2951479051793528132"
       dependencies: []
     code_anchor:
       file: "src/watermark/hash.ts"
@@ -1268,7 +1268,7 @@ claims:
       relation: "equality"
       expression: "2**63 - 1"
       inputs: {}
-      expected: 9223372036854776000
+      expected: "9223372036854775807"
       dependencies: []
     code_anchor:
       file: "src/watermark/hash.ts"

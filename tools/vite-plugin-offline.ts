@@ -116,6 +116,7 @@ export function offlinePlugin(base: string): Plugin {
  */
 'use strict';
 
+const CACHE_PREFIX = 'token-tell-';
 const VERSION = ${JSON.stringify(version)};
 const BASE = ${JSON.stringify(base)};
 const CORE = ${JSON.stringify(core, null, 2)};
@@ -149,7 +150,12 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((names) => Promise.all(names.filter((name) => name !== VERSION).map((name) => caches.delete(name))))
+      // CacheStorage is shared by every application on an origin, even when this worker's
+      // scope is only one project path. Retire this lab's old builds and leave caches owned
+      // by the other systemslibrarian.github.io applications alone.
+      .then((names) => Promise.all(names
+        .filter((name) => name.startsWith(CACHE_PREFIX) && name !== VERSION)
+        .map((name) => caches.delete(name))))
       .then(() => self.clients.claim()),
   );
 });

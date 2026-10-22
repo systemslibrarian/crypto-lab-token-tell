@@ -99,6 +99,16 @@ async function startHostStandIn(): Promise<{
     if (!path.startsWith(BASE)) return miss();
     const relative = path.slice(BASE.length) || 'index.html';
     if (relative.split('/').some((part) => part.startsWith('.'))) return miss();
+    // A same-origin page that does not register the worker lets the test seed CacheStorage
+    // before the first activation. CacheStorage is origin-wide even though worker control
+    // is scoped to BASE, which is the boundary the activation test below exercises.
+    if (relative === 'cache-seed.html') {
+      response.writeHead(200, {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+      }).end('<!doctype html><title>cache seed</title>');
+      return;
+    }
     void (async () => {
       let body: Buffer;
       try {
@@ -133,6 +143,16 @@ test('the worker installs and the lab renders offline, on a host that refuses do
     const core = await precacheList();
     const host = await startHostStandIn();
     try {
+      // The GitHub Pages origin hosts many applications. Seed one cache owned by another
+      // application and one obsolete cache owned by this lab before the worker first
+      // activates: activation must preserve the former and retire the latter.
+      await page.goto(`${host.origin}cache-seed.html`, { waitUntil: 'load' });
+      await page.evaluate(async () => {
+        const foreign = await caches.open('another-pages-app-v1');
+        await foreign.put('/another-pages-app/resource', new Response('foreign'));
+        const stale = await caches.open('token-tell-stale-test');
+        await stale.put('/crypto-lab-token-tell/stale', new Response('stale'));
+      });
       await page.goto(host.origin, { waitUntil: 'load' });
 
       // `ready` resolves only once a worker has activated, and activation follows an
@@ -157,11 +177,16 @@ test('the worker installs and the lab renders offline, on a host that refuses do
       });
       expect(state.active, 'the worker must reach activated').toBe('activated');
 
-      // One cache, holding the whole list. Both halves matter: the count catches an
-      // install that filled the cache partially, and the single key catches an activate
-      // that failed to retire the previous deploy's copy.
-      expect(state.entries, `caches after install: ${JSON.stringify(state.entries)}`)
-        .toEqual({ [Object.keys(state.entries)[0] ?? '']: core.length });
+      // One current cache owned by this lab, holding the whole list. The old lab cache is
+      // gone, while the unrelated same-origin cache survives activation unchanged.
+      expect(state.entries['another-pages-app-v1']).toBe(1);
+      expect(state.entries['token-tell-stale-test']).toBeUndefined();
+      const owned = Object.entries(state.entries)
+        .filter(([name]) => name.startsWith('token-tell-'));
+      expect(owned, `Token Tell caches after install: ${JSON.stringify(state.entries)}`)
+        .toHaveLength(1);
+      expect(owned[0]?.[1], `precache entries after install: ${JSON.stringify(state.entries)}`)
+        .toBe(core.length);
 
       // Said plainly rather than inferred from the count, because this is the failure
       // that shipped and the message should name the URL when it comes back.
