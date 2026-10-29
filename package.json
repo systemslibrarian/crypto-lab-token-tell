@@ -21,15 +21,15 @@
     "verify:manifest": "node verification/tools/validate-manifest.mjs verification/manifest.yaml"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
-    "@playwright/test": "^1.64.0",
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.5",
-    "@vitest/coverage-v8": "^5.0.3",
+    "@vitest/coverage-v8": "^5.0.5",
     "ajv": "^8.20.0",
-    "happy-dom": "^21.0.3",
-    "js-yaml": "^5.4.3",
+    "happy-dom": "^21.0.4",
+    "js-yaml": "^5.5.0",
     "typescript": "~7.0.2",
-    "vite": "^8.3.4",
+    "vite": "^8.3.5",
     "vitest": "^5.0.3"
   },
   "dependencies": {
