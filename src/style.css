@@ -1134,3 +1134,7 @@ figcaption { margin-top: 0.4rem; max-width: 78ch; }
      cross-axis size has to be released as well as the width. */
   .controls > .reset-control, .controls > .identity-copy { align-self: flex-start; }
 }
+
+/* The chapter-step chevrons, drawn here rather than written as DOM text. */
+.chapters-step--prev::before { content: "\2039"; }
+.chapters-step--next::before { content: "\203A"; }

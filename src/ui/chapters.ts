@@ -277,16 +277,21 @@ export function renderChapters(host: HTMLElement): void {
     if (!browsing) navigate(select.value);
   });
 
+  // The chevrons are drawn from CSS rather than written as DOM text. axe 4.14
+  // compares a control's accessible name against everything a SIGHTED user
+  // sees (label-content-name-mismatch, WCAG 2.5.3 Label in Name) while
+  // excluding aria-hidden content from the NAME, so an aria-hidden glyph
+  // inside the button can never be matched by any label.
   const previous = el('button', {
     type: 'button',
-    class: 'chapters-step',
+    class: 'chapters-step chapters-step--prev',
     'aria-label': 'Previous section',
-  }, [el('span', { 'aria-hidden': 'true', text: '‹' })]);
+  }, []);
   const next = el('button', {
     type: 'button',
-    class: 'chapters-step',
+    class: 'chapters-step chapters-step--next',
     'aria-label': 'Next section',
-  }, [el('span', { 'aria-hidden': 'true', text: '›' })]);
+  }, []);
 
   const step = (delta: number): void => {
     const index = chapters.findIndex((chapter) => chapter.id === currentChapterId);
