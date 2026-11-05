@@ -358,6 +358,7 @@ pip install -r tools/requirements-transformers.txt  # capture_sampling_table.py 
 npm test              # 230 unit tests, including differential vectors from both references
 npm run verify        # the independent verifier: 112 checks, sharing no module with the lab
 npm run verify:manifest
+npm run verify:computations   # every computable claim evaluated in its own declared language
 npm run test:a11y     # all five browser suites, 63 tests, against the production build
 ```
 

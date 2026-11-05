@@ -1229,7 +1229,7 @@ claims:
       relation: "equality"
       expression: "((((1 + 464) * 6364136223846793005 + 1) + 2**63) % 2**64) - 2**63"
       inputs: {}
-      expected: "2951479051793528132"
+      expected: "7844292295230488766"
       dependencies: []
     code_anchor:
       file: "src/watermark/hash.ts"

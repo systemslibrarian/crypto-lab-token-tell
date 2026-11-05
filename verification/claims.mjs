@@ -398,8 +398,16 @@ export const CLAIMS = [
       relation: 'equality',
       expression: '((((1 + 464) * 6364136223846793005 + 1) + 2**63) % 2**64) - 2**63',
       inputs: {},
-      // Kept as a decimal string so the generated YAML records the exact int64 result.
-      expected: '2951479051793528132',
+      // 7844292295230488766, not the 2951479051793528132 that stood here until
+      // 2026-11-05. Nothing produced that number: it is not this expression's value
+      // under any input, and the multiplier that would produce it (14843083360471324371)
+      // is not a constant either implementation uses. Re-derived two ways, and both
+      // agree with what accumulateStep itself computes:
+      //   python3: ((((1 + 464) * 6364136223846793005 + 1) + 2**63) % 2**64) - 2**63
+      //   node:    BigInt.asIntN(64, (1n + 464n) * 6364136223846793005n + 1n)
+      // Kept as a decimal string so the generated YAML records the exact int64 result;
+      // as a JavaScript number it would be published as 7844292295230488600.
+      expected: '7844292295230488766',
       dependencies: [],
     },
     reference_anchor: anchor('REFIMPL', 'hashing_function.py accumulate_hash'),
