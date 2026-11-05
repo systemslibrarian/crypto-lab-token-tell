@@ -199,8 +199,11 @@ export const PARAMETERS = [
   },
   {
     name: 'lcg_multiplier',
-    value_in_code: 6364136223846793005,
-    expected_value: 6364136223846793005,
+    // Decimal strings are intentional. A JavaScript number cannot represent this 64-bit
+    // integer exactly, and feeding the numeric literal to the manifest writer silently
+    // rounded both sides to 6364136223846793000.
+    value_in_code: '6364136223846793005',
+    expected_value: '6364136223846793005',
     reference_anchor: { ref: 'REFIMPL', location: 'hashing_function.py accumulate_hash' },
     reference_quote: 'Method uses adapted linear congruential generator (LCG)with newlib/musl',
     match: 'yes',
@@ -395,7 +398,8 @@ export const CLAIMS = [
       relation: 'equality',
       expression: '((((1 + 464) * 6364136223846793005 + 1) + 2**63) % 2**64) - 2**63',
       inputs: {},
-      expected: 2951479051793528132,
+      // Kept as a decimal string so the generated YAML records the exact int64 result.
+      expected: '2951479051793528132',
       dependencies: [],
     },
     reference_anchor: anchor('REFIMPL', 'hashing_function.py accumulate_hash'),
@@ -507,7 +511,8 @@ export const CLAIMS = [
       relation: 'equality',
       expression: '2**63 - 1',
       inputs: {},
-      expected: 9223372036854775807,
+      // Kept as a decimal string so the generated YAML records 2^63 - 1 exactly.
+      expected: '9223372036854775807',
       dependencies: [],
     },
     reference_anchor: anchor('REFIMPL', 'logits_processing.py __init__ hash_iv'),

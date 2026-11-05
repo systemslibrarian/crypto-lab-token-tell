@@ -61,7 +61,10 @@ const SCENARIO_PARAM = 'scenario';
 
 function scenarioFromUrl(): DistributionKey {
   const requested = param(SCENARIO_PARAM);
-  if (requested !== null && requested in distributions.distributions) {
+  // `in` also accepts inherited names such as `toString` and `constructor`. A crafted
+  // deep link using one of those names made the lookup return an Object prototype member,
+  // which then crashed when the tournament treated it as a pinned distribution.
+  if (requested !== null && Object.hasOwn(distributions.distributions, requested)) {
     return requested as DistributionKey;
   }
   // A parameter naming something this page cannot show is a link that lies about what the
