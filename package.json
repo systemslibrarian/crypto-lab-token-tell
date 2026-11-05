@@ -18,7 +18,8 @@
     "test:a11y": "playwright test",
     "make:social": "node tools/make-social-image.mjs",
     "verify": "node verification/verifier/verify.mjs",
-    "verify:manifest": "node verification/tools/validate-manifest.mjs verification/manifest.yaml"
+    "verify:manifest": "node verification/tools/validate-manifest.mjs verification/manifest.yaml",
+    "verify:computations": "node verification/tools/check-computations.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",

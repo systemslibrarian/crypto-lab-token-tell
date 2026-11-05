@@ -45,6 +45,9 @@ jobs:
       - name: Verification manifest validates
         run: npm run verify:manifest
 
+      - name: Every computable claim agrees with its own expression
+        run: npm run verify:computations
+
       - name: Independent verifier
         run: npm run verify
 

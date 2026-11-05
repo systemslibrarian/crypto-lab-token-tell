@@ -148,6 +148,11 @@ const manifest = {
 };
 
 // ── emit YAML (a small, explicit writer: no dependency, no surprises) ───────────
+// The array branch used to run `.replace(/\n/g, '\n')` before slicing, which replaces
+// every newline with itself. CodeQL named it — js/identity-replacement, medium,
+// 2026-10-28 — and it was dead rather than mistaken: the first line's indent is what
+// has to change, and the `^<indent+2 spaces>` replacement below is what changes it.
+// Removing it leaves the generated manifest byte-identical, which `--check` proves.
 function yaml(value, indent = 0) {
   const pad = ' '.repeat(indent);
   if (value === null || value === undefined) return '';
@@ -156,7 +161,7 @@ function yaml(value, indent = 0) {
     return `\n${value.map((item) => {
       const rendered = yaml(item, indent + 2);
       return rendered.startsWith('\n')
-        ? `${pad}-${rendered.replace(/\n/g, '\n').slice(1).replace(new RegExp(`^${' '.repeat(indent + 2)}`), ' ')}`
+        ? `${pad}-${rendered.slice(1).replace(new RegExp(`^${' '.repeat(indent + 2)}`), ' ')}`
         : `${pad}-${rendered}`;
     }).join('\n')}`;
   }
