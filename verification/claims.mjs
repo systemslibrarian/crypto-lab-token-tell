@@ -806,7 +806,14 @@ export const CLAIMS = [
     conformance_status: 'matches_reference',
     notes:
       'The paper’s headline results use a learned Bayesian scoring function instead; '
-      + 'that is stated wherever this page prints a score.',
+      + 'that is stated wherever this page prints a score. The expected value '
+      + '0.6037528604118994 is the PUBLISHED figure, not this lab\'s computed result: the '
+      + 'code at the anchor computes the exact 5470 / 9060 = 0.6037527593818984, a 1.7e-7 '
+      + 'relative difference. No integer count over 9060 produces the published figure '
+      + '(it implies a denominator of 9059.9985), and it is not a float-accumulation '
+      + 'artefact either — summing 5470 copies of 1/9060 gives 0.6037527593819111. The '
+      + 'code keeps the exact division; the discrepancy is recorded rather than '
+      + 'reconciled.',
   },
   {
     key: 'null-mean',
@@ -913,7 +920,15 @@ export const CLAIMS = [
     extraction_status: 'anchored',
     verification_status: 'independently_tested',
     conformance_status: 'not_applicable',
-    notes: 'Labelled a demo simplification in the page itself. See Q4.',
+    notes:
+      'Labelled a demo simplification in the page itself. See Q4. The expected value '
+      + '0.005253784205889284 is the PUBLISHED figure from Supplementary A.3.1, not this '
+      + "lab's computed result: the code at the anchor computes sqrt(0.25 / 9060) = "
+      + '0.005252981913594169, a 1.5e-4 relative difference. The published figure implies '
+      + 'n = 0.25 / se^2 = 9057.23, so NO integer count of g-values reproduces it, and '
+      + 'sqrt(p(1-p)/9060) cannot reach it either because that would need '
+      + 'p(1-p) = 0.2500076. The code keeps the exact expression; the discrepancy is '
+      + 'recorded rather than reconciled.',
   },
   {
     key: 'empirical-p',
