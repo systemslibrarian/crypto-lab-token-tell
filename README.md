@@ -181,7 +181,7 @@ manifest, then reset.
 and the signature verifies.
 → *Signed a lie → integrity passed; truth remained unanswered.*
 
-**1:15 — The comparison.** Four questions rather than ten, led by **WHO CAN VERIFY?**:
+**1:15 — The comparison.** Four questions rather than eleven, led by **WHO CAN VERIFY?**:
 who can verify, whether the evidence is statistical or binary, whether it survives
 manifest removal, and whether it proves the content is true.
 → *Asked who can verify → only the issuer can check a watermark; anyone can check a
