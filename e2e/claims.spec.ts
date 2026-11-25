@@ -58,7 +58,7 @@ const CALCULATION_TERMS = [
   'p-value (exact tail)',
   'Standard error if independent',
   'z on that assumption',
-  'Threshold at FPR 1%',
+  'Threshold at target FPR 1%',
 ];
 
 /** The value beside a term, read out of any definition list inside `scope`. */
@@ -228,6 +228,18 @@ test('the detector retires a verdict when the text changes, and a no-op does not
     await expect(page.locator('#act-2 [data-retired]')).toHaveCount(0);
     await expect(page.locator('#act-2 .verdict').first()).toBeVisible();
   });
+
+test('a tied calibration cutoff and a single scored position are identified', async ({ page }) => {
+  await page.goto(LAB);
+  const act = page.locator('#act-2');
+  await page.locator('#detector-input').fill(' library'.repeat(100));
+  await act.getByRole('button', { name: 'Score it' }).click();
+  expect(await readout(act, 'Tokens')).toBe('100');
+  expect(await readout(act, 'Scored positions')).toBe('1');
+  await expect(act.locator('.verdict').first()).toContainText('Above cutoff, limited evidence');
+  await expect(act.locator('.verdict').first()).toContainText('p = 0.428');
+  await expect(act).toContainText('2 of 48 unwatermarked texts at 100 tokens met or exceeded this cutoff (4.2%)');
+});
 
 test('a short text is refused a score rather than given a meaningless one', async ({ page }) => {
   await page.goto(LAB);
@@ -484,7 +496,7 @@ test('stripping and regeneration are shown as different failures', async ({ page
   const after = Number(await readout(regen, 'Score after'));
   expect(before).toBeCloseTo(REFERENCE.watermarkedScore, 3);
   // The regeneration panel's verdict must agree with its own numbers.
-  const threshold = Number(await readout(regen, 'Threshold at FPR 1%'));
+  const threshold = Number(await readout(regen, 'Threshold at target FPR 1%'));
   const survived = after >= threshold;
   await expect(regen.locator('.verdict')).toContainText(
     survived ? 'Evidence survived' : 'Evidence did not survive');

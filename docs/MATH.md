@@ -202,12 +202,14 @@ All figures below are for this configuration — `ngram_len = 5`, 30 keys,
 `context_history_size = 1024`, `N = 2`, GPT-2 at temperature 1.0 and top-k 40 — and for no
 other. They were produced by `tools/` and are committed under `src/data/pinned/`.
 
-- Detection rate at a 1% false-positive threshold rises from roughly 56% at 10 tokens to
+- Detection rate at a cutoff targeting a 1% false-positive rate rises from roughly 56% at 10 tokens to
   roughly 85% at 150 tokens, and then plateaus.
-- The plateau is not a length effect. Around one in seven watermarked texts in the corpus
-  collapses into a repetition loop; the repeated-context rule then discards almost every
-  position, and there is nothing left to score. Those texts are never detected at any
-  length.
+- At 100 tokens, two of 48 unmarked calibration texts tie at the cutoff. With the
+  inclusive comparison, the sample false-positive rate is 4.2%. The population rate is unknown.
+- Repeated contexts leave fewer scored positions. Repeating the single token “ library”
+  100 times leaves one scored position. Its 16 successes across 30 layers meet the
+  length-based cutoff, but an independent fair-coin model gives an upper-tail probability
+  of 0.428. The detector shows this disagreement alongside the score.
 - Back-translation (English → German → English, Helsinki-NLP opus-mt) degrades the score
   but leaves it above the threshold. Paraphrase (a T5 paraphraser, sentence by sentence)
   takes it to the null. Both transformations are committed with the exact models,

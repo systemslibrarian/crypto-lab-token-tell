@@ -87,7 +87,7 @@ function renderHeadline(entry: PinnedAttack): HTMLElement {
       class: 'act-headline-detail',
       text: `Mean g-score after the paraphrase, ${direction} ${fixed(before)} before it, ` +
         `against a threshold of ${fixed(entry.threshold.value ?? Number.NaN)} at a 1% ` +
-        'false-positive rate.',
+        'target false-positive rate.',
     }),
     consequence(
       'Rewrote the text with a real model, keeping the meaning',
@@ -429,7 +429,7 @@ function renderPinnedAttacks(pinned: PinnedAttack[]): { node: HTMLElement; reset
           el('th', { class: 'num', text: 'After' }),
           el('th', { class: 'num', text: 'Change' }),
           el('th', { class: 'num', text: 'Scored positions' }),
-          el('th', { class: 'num', text: 'Threshold @ 1%' }),
+          el('th', { class: 'num', text: 'Threshold @ 1% target' }),
           el('th', { text: 'Verdict' }),
         ])]),
         el('tbody', {}, rows),

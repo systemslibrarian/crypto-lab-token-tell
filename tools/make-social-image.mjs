@@ -277,7 +277,7 @@ function socialMarkup(claims) {
     <footer>
       <p>
         <b>Runs 1 and 2 · one SHA-256</b> ${escapeHtml(shortDigest)}<br />
-        <b>Threshold</b> ${fixed(claims.threshold.value)} at FPR 1% ·
+        <b>Threshold</b> ${fixed(claims.threshold.value)} at target FPR 1% ·
         ${claims.threshold.measuredAtLength}-token unwatermarked null
       </p>
       <p class="url">systemslibrarian.github.io/crypto-lab-token-tell</p>

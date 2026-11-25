@@ -179,14 +179,8 @@ function renderHeadline(high: Measurement, low: Measurement): HTMLElement {
 const GPT2_EOS = 50256;
 
 /**
- * The same lesson at corpus scale, and the reason this lab's detection rate has a
- * ceiling.
- *
- * Roughly one in seven of the watermarked texts in the pinned corpus is never detected at
- * any length. They are not short. They are degenerate: GPT-2 fell into a repetition loop,
- * the repeated-context rule threw out almost every position, and there was nothing left
- * to score. A length-based reading of the detection curve would call that a length
- * problem. It is an entropy problem.
+ * Compare the cutoff outcomes for equal-length texts. Repeated contexts can
+ * leave very different numbers of scored positions at the same token count.
  */
 function renderCorpusScale(): HTMLElement {
   const output = liveRegion('Corpus-scale entropy analysis');
@@ -238,12 +232,12 @@ function renderCorpusScale(): HTMLElement {
 
     output.append(readout([
       ['Watermarked texts scored', integer(rows.length)],
-      ['Detected at FPR 1%', integer(found.length)],
-      ['Not detected', integer(missed.length)],
-      ['Detected: mean scored positions', fixed(mean(found.map((r) => r.scored)), 1)],
-      ['Not detected: mean scored positions', fixed(mean(missed.map((r) => r.scored)), 1)],
-      ['Detected: mean distinct tokens', fixed(mean(found.map((r) => r.distinct)), 1)],
-      ['Not detected: mean distinct tokens', fixed(mean(missed.map((r) => r.distinct)), 1)],
+      ['At or above corpus cutoff', integer(found.length)],
+      ['Below corpus cutoff', integer(missed.length)],
+      ['At or above cutoff: mean scored positions', fixed(mean(found.map((r) => r.scored)), 1)],
+      ['Below cutoff: mean scored positions', fixed(mean(missed.map((r) => r.scored)), 1)],
+      ['At or above cutoff: mean distinct tokens', fixed(mean(found.map((r) => r.distinct)), 1)],
+      ['Below cutoff: mean distinct tokens', fixed(mean(missed.map((r) => r.distinct)), 1)],
       ['Positions the window offered (all texts)', integer(rows[0]?.candidates ?? 0)],
     ], 'Detected against undetected'));
 
@@ -252,7 +246,7 @@ function renderCorpusScale(): HTMLElement {
         el('td', { class: 'num', text: fixed(row.score) }),
         el('td', { class: 'num', text: integer(row.scored) }),
         el('td', { class: 'num', text: integer(row.distinct) }),
-        el('td', { text: row.detected ? 'detected' : 'not detected' }),
+        el('td', { text: row.detected ? 'meets cutoff' : 'below cutoff' }),
       ]));
 
     output.append(
@@ -263,16 +257,14 @@ function renderCorpusScale(): HTMLElement {
             el('th', { class: 'num', text: 'Score' }),
             el('th', { class: 'num', text: 'Scored positions' }),
             el('th', { class: 'num', text: 'Distinct tokens' }),
-            el('th', { text: 'Verdict at FPR 1%' }),
+            el('th', { text: 'Corpus cutoff (1% target)' }),
           ])]),
           el('tbody', {}, worst),
         ]),
       ]),
       el('p', { class: 'note' }, [
-        'Every text in this corpus is 320 tokens long, so length explains none of the ' +
-        'difference. What separates them is how many distinct tokens the model produced: ' +
-        'the undetected ones collapsed into repetition loops, the repeated-context rule ' +
-        'discarded almost every position, and there was nothing left to average.',
+        'Every text here has 320 tokens. A repeated context is counted only once. ' +
+        'The table shows how many positions contributed to each mean and whether it met the corpus cutoff.',
       ]),
       el('p', { class: 'note' }, [
         'The table also shows the other edge of the same problem. A text with one scored ' +
@@ -283,9 +275,8 @@ function renderCorpusScale(): HTMLElement {
         'positions.',
       ]),
       consequence(
-        'Held the length fixed at 320 tokens and varied only the entropy',
-        `${integer(missed.length)} of ${integer(rows.length)} watermarked texts still went ` +
-        'undetected.',
+        'Compared watermarked texts of the same length (320 tokens)',
+        `${integer(missed.length)} of ${integer(rows.length)} watermarked texts scored below the corpus cutoff.`,
       ),
     );
   };

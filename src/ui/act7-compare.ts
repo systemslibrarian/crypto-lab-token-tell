@@ -123,7 +123,7 @@ const ROWS: ComparisonRow[] = [
     signature: { text: 'binary', tone: 'yes' },
     c2pa: { text: 'binary for integrity; trust is a separate judgement', tone: 'partial' },
     detail:
-      'Every watermark verdict on this page carries a threshold and a false-positive rate ' +
+      'Every watermark verdict on this page carries a threshold and a target false-positive rate ' +
       'because it has to. The signature verdicts carry neither, because there is nothing ' +
       'to tune: the bytes either verify or they do not.',
   },
@@ -675,7 +675,7 @@ function renderStripVsRegenerate(): HTMLElement {
       readout([
         ['Score before', fixed(before.score)],
         ['Score after', fixed(after.score)],
-        ['Threshold at FPR 1%', fixed(threshold.value ?? Number.NaN)],
+        ['Threshold at target FPR 1%', fixed(threshold.value ?? Number.NaN)],
         ['Tokens before', integer(before.tokenCount)],
         ['Tokens after', integer(after.tokenCount)],
         ['Scored positions after', integer(after.scoredPositions)],

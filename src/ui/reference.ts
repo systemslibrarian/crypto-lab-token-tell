@@ -200,7 +200,7 @@ const LIMITATIONS: string[] = [
   'configuration published here and nothing else.',
   'Every threshold on this page is specific to this configuration, this model and this ' +
   'corpus of 48 texts per class. A 1% threshold estimated from 48 samples rests on the ' +
-  'single highest of them.',
+  'highest score. All texts tied there meet the cutoff.',
   'The thresholds are indexed by token count, while the evidence is indexed by scored ' +
   'positions. For a degenerate text these diverge sharply, which Act III measures rather ' +
   'than hides.',

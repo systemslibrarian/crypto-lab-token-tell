@@ -34,7 +34,7 @@ export interface ThresholdInfo {
 
 type ByLength = Record<string, {
   tokens: number;
-  null_sample_count: number;
+  null_scores: readonly number[];
   null_mean: number | null;
   null_sd: number | null;
   threshold_fpr_1_percent: number | null;
@@ -44,7 +44,7 @@ type ByLength = Record<string, {
 /**
  * The decision threshold for a text of this length.
  *
- * Taken from the pinned corpus null: the top 1% of scores from unwatermarked texts of the
+ * Taken from the pinned corpus null: a cutoff estimated from unwatermarked texts of the
  * nearest length at or below this one. It is an empirical construction of this lab, for
  * this configuration, this model and this corpus. No primary source supplies a numeric
  * threshold, and this lab does not pretend otherwise.
@@ -66,13 +66,16 @@ export function thresholdForLength(tokenCount: number, fpr: 0.01 | 0.05 = 0.01):
   }
   const entry = byLength[String(chosen)];
   const value = fpr === 0.01 ? entry.threshold_fpr_1_percent : entry.threshold_fpr_5_percent;
+  const crossed = entry.null_scores.filter((score) => value !== null && score >= value).length;
+  const total = entry.null_scores.length;
   return {
     value,
     measuredAtLength: chosen,
     falsePositiveRate: fpr,
     source:
-      `top ${(fpr * 100).toFixed(0)}% of ${entry.null_sample_count} unwatermarked texts ` +
-      `of ${chosen} tokens, scored with this configuration`,
+      value === null || total === 0 ? `no calibration result at ${chosen} tokens` :
+        `under the configured key, ${crossed} of ${total} unwatermarked texts at ${chosen} tokens ` +
+        `met or exceeded this cutoff (${(100 * crossed / total).toFixed(1)}%)`,
   };
 }
 
@@ -92,7 +95,9 @@ export interface ScoreCardOptions {
   };
 }
 
-export function scoreVerdict(result: ScoreResult, threshold: ThresholdInfo): {
+export function scoreVerdict(
+  result: ScoreResult, threshold: ThresholdInfo, exact = statistics(result).exact,
+): {
   tone: VerdictTone;
   label: string;
   detail: string;
@@ -101,9 +106,9 @@ export function scoreVerdict(result: ScoreResult, threshold: ThresholdInfo): {
     return {
       tone: 'none',
       label: 'No score',
-      detail:
-        `Too short to score: ${result.tokenCount} tokens leaves no position with a full ` +
-        'context window.',
+      detail: result.candidatePositions === 0
+        ? 'The text ends before the first full context window.'
+        : 'All candidate positions were skipped. See the repeated-context and end-of-text counts below.',
     };
   }
   if (threshold.value === null) {
@@ -115,13 +120,22 @@ export function scoreVerdict(result: ScoreResult, threshold: ThresholdInfo): {
         'threshold for it and will not invent one.',
     };
   }
+  const target = `${(threshold.falsePositiveRate * 100).toFixed(0)}%`;
   if (result.score >= threshold.value) {
+    if (exact && exact.pValue > threshold.falsePositiveRate) {
+      const positions = result.scoredPositions === 1 ? '1 scored position' : `${result.scoredPositions} scored positions`;
+      return {
+        tone: 'caution',
+        label: 'Above cutoff, limited evidence',
+        detail: `The mean meets the corpus cutoff of ${fixed(threshold.value)}. With ${positions}, ` +
+          `the independent fair-coin model gives p = ${pValue(exact.pValue, exact.log10PValue)}, above the ${target} target.`,
+      };
+    }
     return {
       tone: 'evidence',
       label: 'Evidence for this key',
       detail:
-        `${fixed(result.score)} is at or above the ${(threshold.falsePositiveRate * 100).toFixed(0)}% ` +
-        `false-positive threshold of ${fixed(threshold.value)} for this configuration. ` +
+        `${fixed(result.score)} meets the cutoff of ${fixed(threshold.value)} (target ${target} false positives). ` +
         'That is evidence about this watermark configuration, not about who wrote the text.',
     };
   }
@@ -129,8 +143,8 @@ export function scoreVerdict(result: ScoreResult, threshold: ThresholdInfo): {
     tone: 'none',
     label: 'No evidence for this key',
     detail:
-      `${fixed(result.score)} is below the ${(threshold.falsePositiveRate * 100).toFixed(0)}% ` +
-      `false-positive threshold of ${fixed(threshold.value)}. This is not evidence that a ` +
+      `${fixed(result.score)} is below the cutoff of ${fixed(threshold.value)} (target ${target} false positives). ` +
+      `This is not evidence that a ` +
       'human wrote it, and not evidence that no other watermark is present.',
   };
 }
@@ -194,7 +208,7 @@ function statisticRows(
     rows.push(['z on that assumption', fixed(approximation.z, 2)]);
   }
   rows.push([
-    `Threshold at FPR ${(threshold.falsePositiveRate * 100).toFixed(0)}%`,
+    `Threshold at target FPR ${(threshold.falsePositiveRate * 100).toFixed(0)}%`,
     threshold.value === null ? 'not measured at this length' : fixed(threshold.value),
   ]);
 
@@ -213,7 +227,7 @@ function statisticRows(
 function provenanceNote(threshold: ThresholdInfo): HTMLElement {
   return el('p', { class: 'note' }, [
     `Threshold source: ${threshold.source}. `,
-    'Every threshold on this page is specific to this configuration. ',
+    threshold.value === null ? '' : 'The calibration uses the configured key and default construction. ',
     'The standard error and z are computed on the assumption that the counted ' +
       'g-values are independent fair coins; the paper argues that repeated-context ' +
       'masking makes them so, and the wrong-key null measured on this page is how that ' +
@@ -226,7 +240,8 @@ export function renderScoreCard(
   options: ScoreCardOptions,
 ): HTMLElement {
   const threshold = thresholdForLength(result.tokenCount);
-  const decision = scoreVerdict(result, threshold);
+  const computed = statistics(result);
+  const decision = scoreVerdict(result, threshold, computed.exact);
 
   return el('div', {}, [
     el('div', { class: 'panel-title' }, [
@@ -235,7 +250,7 @@ export function renderScoreCard(
     ]),
     el('p', { class: 'note', text: `${options.keyDescription} · ${options.constructionLabel}` }),
     verdict(decision.tone, decision.label, decision.detail),
-    readout(statisticRows(result, threshold, options.empirical), `${options.subject} statistics`),
+    readout(statisticRows(result, threshold, options.empirical, computed), `${options.subject} statistics`),
     provenanceNote(threshold),
   ]);
 }
@@ -284,8 +299,8 @@ function metric(label: string, value: string, major = false): HTMLElement {
 
 export function renderResultCard(result: ScoreResult, options: ResultCardOptions): ResultCard {
   const threshold = thresholdForLength(result.tokenCount);
-  const decision = scoreVerdict(result, threshold);
   const computed = statistics(result);
+  const decision = scoreVerdict(result, threshold, computed.exact);
   const { exact } = computed;
 
   const call = verdict(decision.tone, decision.label, decision.detail);
@@ -315,7 +330,7 @@ export function renderResultCard(result: ScoreResult, options: ResultCardOptions
     el('dl', { class: 'result-metrics' }, [
       figure,
       metric(
-        `Threshold at FPR ${(threshold.falsePositiveRate * 100).toFixed(0)}%`,
+        `Threshold at target FPR ${(threshold.falsePositiveRate * 100).toFixed(0)}%`,
         threshold.value === null ? 'not measured at this length' : fixed(threshold.value),
       ),
       metric(

@@ -448,8 +448,10 @@ function renderStrengthCurve(): HTMLElement {
     live.append(readout([
       ['Recomputed at length', `${integer(length)} tokens`],
       ['Unwatermarked texts re-scored', integer(nullScores.length)],
-      ['Threshold at FPR 1% (recomputed)', fixed(threshold)],
-      ['Threshold at FPR 1% (pinned)', fixed(pinned.threshold_fpr_1_percent ?? Number.NaN)],
+      ['Threshold at target FPR 1% (recomputed)', fixed(threshold)],
+      ['Threshold at target FPR 1% (pinned)', fixed(pinned.threshold_fpr_1_percent ?? Number.NaN)],
+      ['Unwatermarked texts at or above cutoff',
+        `${nullScores.filter((score) => score >= threshold).length} of ${nullScores.length}`],
       ['Watermarked texts re-scored', integer(markedScores.length)],
       ['Detection rate (recomputed)', tpr === null ? 'n/a' : `${(tpr * 100).toFixed(1)}%`],
       ['Detection rate (pinned)',
@@ -505,17 +507,17 @@ function renderStrengthCurve(): HTMLElement {
           el('th', { class: 'num', text: 'Unmarked mean' }),
           el('th', { class: 'num', text: 'Unmarked sd (measured)' }),
           el('th', { class: 'num', text: 'sd if independent' }),
-          el('th', { class: 'num', text: 'Threshold @ FPR 1%' }),
+          el('th', { class: 'num', text: 'Threshold @ target FPR 1%' }),
           el('th', { class: 'num', text: 'Marked mean' }),
-          el('th', { class: 'num', text: 'Detection rate @ FPR 1%' }),
+          el('th', { class: 'num', text: 'Detection rate @ target FPR 1%' }),
         ])]),
         el('tbody', {}, rows),
       ]),
     ]),
     el('p', { class: 'note' }, [
       `Both corpora hold ${integer(nullCorpus.corpus_size)} texts. A 1% threshold estimated ` +
-      'from that many samples rests on the single highest of them, so the shortest rows are ' +
-      'the least trustworthy in the table — and a detection rate of 100% here means 48 of ' +
+      'from this sample is the maximum unmarked score. Every tie at the maximum counts as a ' +
+      'false positive on these calibration texts. A detection rate of 100% here means 48 of ' +
       '48, which is a different claim from a rate of 1. Where the measured spread runs ' +
       'above the independence prediction, the exact p-value in the score card is optimistic ' +
       'at that length.',

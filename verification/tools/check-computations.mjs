@@ -56,20 +56,14 @@ const FLOAT_TOLERANCE = 1e-12;
  * Each entry must STILL disagree. If one starts agreeing, this file fails too: a list of
  * known exceptions that nobody re-reads is how a fixed defect goes on being excused.
  */
-/*
- * Two published figures that no integer input reproduces. The decision, 2026-11-05, is
- * NOT to chase the paper's arithmetic: the code keeps the exact expression and the
- * manifest labels the published figure as published, with the gap in that claim's own
- * `notes`. These entries stay so the discrepancy is declared rather than silently
- * tolerated -- and the stale-entry guard below still fails the run if either ever starts
- * agreeing, which is what stops a quiet reconciliation.
- */
+// These earlier manifest values have no identified measurement source. The cited
+// paper defines the formulas. Preserve the discrepancies for curator review.
 const KNOWN_UNRESOLVED = {
-  C15: 'published 0.005253784205889284, expression gives 0.005252981913594169 '
-    + '(1.5e-4 relative; the published value implies a count of 9057.23, and no integer '
+  C15: 'earlier manifest value 0.005253784205889284, expression gives 0.005252981913594169 '
+    + '(1.5e-4 relative; the earlier value implies a count of 9057.23, and no integer '
     + 'count reproduces it -- see the claim notes in verification/manifest.yaml)',
-  C27: 'published 0.6037528604118994, expression gives 0.6037527593818984 '
-    + '(1.7e-7 relative; the published value implies a denominator of 9059.9985, and is '
+  C27: 'earlier manifest value 0.6037528604118994, expression gives 0.6037527593818984 '
+    + '(1.7e-7 relative; the earlier value implies a denominator of 9059.9985, and is '
     + 'not a float-accumulation artefact -- see the claim notes in verification/manifest.yaml)'
 };
 

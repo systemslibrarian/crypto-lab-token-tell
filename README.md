@@ -403,7 +403,7 @@ That regenerates five committed files in `public/`: `og.png` (1200x630), `icon.s
 `icon-180.png`, `icon-192.png` and `icon-512.png` rasterised from it.
 
 The preview card is the experiment, not a picture of it. Every figure on it — the three
-mean g-scores, the 1% false-positive threshold, and the SHA-256 that runs 1 and 2 share —
+mean g-scores, the cutoff targeting a 1% false-positive rate, and the SHA-256 that runs 1 and 2 share —
 is read out of `src/data/pinned/` at generation time, and the verdicts are derived by
 comparing each score against the threshold rather than typed in. If a pinned value is
 missing the script stops and names the path it wanted; if a score ever fell on the wrong
